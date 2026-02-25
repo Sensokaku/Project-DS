@@ -51,11 +51,7 @@ int main()
     consoleInit(nullptr, 0, BgType_Text4bpp, BgSize_T_256x256, 2, 0, false, true);
 
     // Initialize maxmod without a soundbank
-    mm_ds_system sys;
-    sys.mod_count    = 0;
-    sys.samp_count   = 0;
-    sys.mem_bank     = 0;
-    sys.fifo_channel = FIFO_MAXMOD;
+    mm_ds_system sys = {};
     mmInit(&sys);
 
     // Initialize the game

@@ -185,7 +185,10 @@ void menuInit()
     dmaCopy(song_listPal, BG_PALETTE_SUB, 3 * sizeof(uint16_t));
     bgSetRotateScale(bg, 0, 1 << 7, 1 << 8);
     bgUpdate();
+
+    // Set and enable the H-blank interrupt
     irqSet(IRQ_HBLANK, bgHBlank);
+    REG_DISPSTAT |= BIT(4);
 }
 
 void songList()
