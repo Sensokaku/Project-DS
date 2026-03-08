@@ -20,8 +20,6 @@
 #include <cstring>
 #include <maxmod9.h>
 #include <nds.h>
-#include "soundbank.h"
-#include "soundbank_bin.h"
 
 #include "vorbis/codec.h"
 
@@ -33,6 +31,11 @@ static int lagConfig = 0;
 static int songWait = 0;
 static int songOffset = 0;
 const int magicNumber = 88344;
+// Hitsound buffers
+static void *buttonSndData = nullptr;
+static void *slideSndData = nullptr;
+static u32 buttonSndLen = 0;
+static u32 slideSndLen = 0;
 
 static mm_word audioCallback(mm_word length, mm_addr dest, mm_stream_formats format)
 {
@@ -51,31 +54,9 @@ static mm_word audioCallback(mm_word length, mm_addr dest, mm_stream_formats for
     return length;
 }
 
-// Hitsound effect handles
-static mm_sound_effect sfxButton;
-static mm_sound_effect sfxSlide;
-
 void audioInit()
 {
-    // Initialize maxmod with the soundbank for sound effects
-    // 2 = number of sound effects to allocate channels for
-    mmInitDefaultMem((mm_addr)soundbank_bin);
-
-    // Set up button hitsound
-    sfxButton.id      = SFX_BUTTON;  // from soundbank.h
-    sfxButton.rate     = 1024;            // 1.0 playback rate (1024 = normal)
-    sfxButton.handle   = 0;
-    sfxButton.volume   = 255;             // max volume
-    sfxButton.panning  = 128;             // center
-
-    // Set up slide hitsound
-    sfxSlide.id       = SFX_SLIDE;   // from soundbank.h
-    sfxSlide.rate      = 1024;
-    sfxSlide.handle    = 0;
-    sfxSlide.volume    = 255;
-    sfxSlide.panning   = 128;
-
-    // Prepare the audio stream (existing code)
+    // Prepare the audio stream
     stream.sampling_rate = 44100 / 2;
     stream.buffer_length = 1024;
     stream.callback      = audioCallback;
@@ -84,14 +65,50 @@ void audioInit()
     stream.manual        = true;
 }
 
-void playButtonHitsound()
+void loadHitSounds()
 {
-    mmEffectEx(&sfxButton);
+    // Load button hitsound (raw 16-bit signed mono PCM)
+    FILE *f = fopen("/project-ds/pcm/sfx/button.pcm", "rb");
+    if (f)
+    {
+        fseek(f, 0, SEEK_END);
+        buttonSndLen = ftell(f);
+        fseek(f, 0, SEEK_SET);
+        if (buttonSndData) free(buttonSndData);
+        buttonSndData = malloc(buttonSndLen);
+        fread(buttonSndData, 1, buttonSndLen, f);
+        fclose(f);
+        DC_FlushRange(buttonSndData, buttonSndLen);
+    }
+
+    // Load slide hitsound (raw 16-bit signed mono PCM)
+    f = fopen("/project-ds/pcm/sfx/slide.pcm", "rb");
+    if (f)
+    {
+        fseek(f, 0, SEEK_END);
+        slideSndLen = ftell(f);
+        fseek(f, 0, SEEK_SET);
+        if (slideSndData) free(slideSndData);
+        slideSndData = malloc(slideSndLen);
+        fread(slideSndData, 1, slideSndLen, f);
+        fclose(f);
+        DC_FlushRange(slideSndData, slideSndLen);
+    }
+
+    // Ensure hardware sound is enabled (safe to call even if maxmod already did it)
+    soundEnable();
 }
 
-void playSlideHitsound()
+void playButtonSound()
 {
-    mmEffectEx(&sfxSlide);
+    if (buttonSndData)
+        soundPlaySample(buttonSndData, SoundFormat_16Bit, buttonSndLen, 22050, 127, 64, false, 0);
+}
+
+void playSlideSound()
+{
+    if (slideSndData)
+        soundPlaySample(slideSndData, SoundFormat_16Bit, slideSndLen, 22050, 127, 64, false, 0);
 }
 
 void setLagConfig(int ms)

@@ -204,6 +204,10 @@ void gameInit()
     // Allocate bitmap data for the sub screen objects
     subGfx[0]  = initObjBitmap(&oamSub, life_emptyBitmap, life_emptyBitmapLen, SpriteSize_32x8);
     subGfx[1]  = initObjBitmap(&oamSub, life_fullBitmap,  life_fullBitmapLen,  SpriteSize_32x8);
+
+    // Load hitsound samples
+    loadHitSounds();
+
 }
 
 static void clearLyrics()
@@ -473,14 +477,11 @@ void gameLoop()
         uint16_t down = keysDown();
         uint16_t up   = keysUp();
 
-        // === HITSOUNDS ===
-        // Main buttons: Triangle (X/UP), Circle (A/RIGHT), Cross (B/DOWN), Square (Y/LEFT)
+        // Play hitsounds on button press
         if (down & (KEY_X | KEY_UP | KEY_A | KEY_RIGHT | KEY_B | KEY_DOWN | KEY_Y | KEY_LEFT))
-            playButtonHitsound();
-
-        // Slide buttons: L and R
+            playButtonSound();
         if (down & (KEY_L | KEY_R))
-            playSlideHitsound();
+            playSlideSound();
 
         if (!notes.empty() && notes[0].time - FRAME_TIME * 12 < timer)
         {
