@@ -21,7 +21,6 @@
 #include <maxmod9.h>
 #include <nds.h>
 #include <malloc.h>
-#include <algorithm>
 
 #include "vorbis/codec.h"
 
@@ -41,6 +40,12 @@ static int32_t slideSndSamples = 0;
 static volatile int32_t buttonSndPos = -1;
 static volatile int32_t slideSndPos = -1;
 
+static inline int16_t clampSample(int32_t val)
+{
+    if (val > 32767) return 32767;
+    if (val < -32768) return -32768;
+    return (int16_t)val;
+}
 
 static mm_word audioCallback(mm_word length, mm_addr dest, mm_stream_formats format)
 {
@@ -71,8 +76,8 @@ mix_hitsounds:
         {
             int32_t l = buf[i * 2 + 0] + buttonSndData[buttonSndPos * 2 + 0];
             int32_t r = buf[i * 2 + 1] + buttonSndData[buttonSndPos * 2 + 1];
-            buf[i * 2 + 0] = std::clamp(l, -32768, 32767);
-            buf[i * 2 + 1] = std::clamp(r, -32768, 32767);
+            buf[i * 2 + 0] = clampSample(l);
+            buf[i * 2 + 1] = clampSample(r);
         }
         if (buttonSndPos >= buttonSndSamples)
             buttonSndPos = -1;
@@ -85,8 +90,8 @@ mix_hitsounds:
         {
             int32_t l = buf[i * 2 + 0] + slideSndData[slideSndPos * 2 + 0];
             int32_t r = buf[i * 2 + 1] + slideSndData[slideSndPos * 2 + 1];
-            buf[i * 2 + 0] = std::clamp(l, -32768, 32767);
-            buf[i * 2 + 1] = std::clamp(r, -32768, 32767);
+            buf[i * 2 + 0] = clampSample(l);
+            buf[i * 2 + 1] = clampSample(r);
         }
         if (slideSndPos >= slideSndSamples)
             slideSndPos = -1;
