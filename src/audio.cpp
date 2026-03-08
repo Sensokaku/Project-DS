@@ -39,9 +39,11 @@ static int16_t *holdSndData = nullptr;
 static int32_t buttonSndSamples = 0;
 static int32_t slideSndSamples = 0;
 static int32_t holdSndSamples = 0;
-static volatile int32_t holdSndPos = -1;
 static int16_t *holdEndSndData = nullptr;
 static int32_t holdEndSndSamples = 0;
+static volatile int32_t buttonSndPos = -1;
+static volatile int32_t slideSndPos = -1;
+static volatile int32_t holdSndPos = -1;
 static volatile int32_t holdEndSndPos = -1;
 
 static inline int16_t clampSample(int32_t val)
@@ -207,7 +209,7 @@ void loadHitSounds()
         printf("Hold SFX NOT FOUND!\n");
     }
 
-        // Load hold end hitsound (stereo 16-bit 22050 Hz raw PCM)
+    // Load hold end hitsound (stereo 16-bit 22050 Hz raw PCM)
     f = fopen("/project-ds/pcm/sfx/holdok.pcm", "rb");
     if (f)
     {
