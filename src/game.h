@@ -36,6 +36,8 @@ struct Results
     uint32_t scoreBase = 0;
     uint32_t scoreHold = 0;
     uint32_t scoreSlide = 0;
+    uint32_t xpEarned;
+    uint32_t levelsGained;
 };
 
 extern uint16_t *initObjBitmap(OamState *oam, const unsigned int *bitmap, size_t bitmapLen, SpriteSize size);

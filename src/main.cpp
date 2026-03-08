@@ -27,6 +27,7 @@
 #include "game.h"
 #include "menu.h"
 #include "loading_screen.h"
+#include "save.h"
 
 int main()
 {
@@ -62,6 +63,7 @@ int main()
     loadingStop();
     gameInit();
     menuInit();
+    saveInit();
 
     // Run the game
     gameLoop();

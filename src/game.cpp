@@ -54,6 +54,7 @@
 #include "audio.h"
 #include "database.h"
 #include "menu.h"
+#include "save.h"
 
 #define PI 3.14159
 #define FRAME_TIME 1672
@@ -910,9 +911,83 @@ void gameLoop()
             clearLyrics();
             retryMenu(true);
         }
-        else if (life == 0 || (finished && notes.empty()))
+       else if (life == 0 || (finished && notes.empty()))
         {
             clearLyrics();
+
+            PlayerData &pd = getPlayerData();
+            pd.songsPlayed++;
+
+            if (life > 0)
+            {
+                pd.songsClear++;
+
+                // --- Difficulty multiplier ---
+                // Matches the difficulty index from loadChart
+                static const uint32_t diffMultiplier[] = { 50, 75, 100, 150, 175 };
+                uint32_t diffMult = diffMultiplier[std::min((size_t)4, (size_t)currentDifficulty)];
+
+                // --- Base XP from clear percentage ---
+                // 0-100% maps to 20-100 base XP
+                uint32_t xpEarned = 20 + (uint32_t)(results.clear * 0.8f);
+
+                // --- Accuracy bonus ---
+                // Ratio of cools+fines vs total notes
+                if (results.total > 0)
+                {
+                    uint32_t goodHits = results.cools + results.fines;
+                    uint32_t accuracyPercent = (goodHits * 100) / results.total;
+                    xpEarned += accuracyPercent / 4; // Up to +25 XP
+                }
+
+                // --- Cool ratio bonus ---
+                // Extra reward for precision (cools vs total)
+                if (results.total > 0)
+                {
+                    uint32_t coolPercent = (results.cools * 100) / results.total;
+                    xpEarned += coolPercent / 5; // Up to +20 XP
+                }
+
+                // --- Combo bonus ---
+                if (results.comboMax >= results.total && results.total > 0)
+                {
+                    xpEarned += 30; // Full combo bonus
+                }
+                else if (results.comboMax >= results.total / 2)
+                {
+                    xpEarned += 10; // Half combo bonus
+                }
+
+                // --- Perfect bonus (all cools, no misses) ---
+                if (results.misses == 0 && results.sads == 0 &&
+                    results.safes == 0 && results.fines == 0)
+                {
+                    xpEarned += 50;
+                    pd.perfectCount++;
+                }
+
+                // --- Apply difficulty multiplier ---
+                // diffMult is a percentage (50-175%)
+                xpEarned = (xpEarned * diffMult) / 100;
+
+                uint32_t levelsGained = addXp(xpEarned);
+                results.xpEarned = xpEarned;
+                results.levelsGained = levelsGained;
+            }
+            else
+            {
+                // Failed: small consolation XP, still scales with difficulty
+                static const uint32_t failXp[] = { 5, 8, 10, 15, 18 };
+                uint32_t xpEarned = failXp[std::min((size_t)4, (size_t)currentDifficulty)];
+
+                // Bonus for getting far before failing
+                xpEarned += (uint32_t)(results.clear * 0.1f);
+
+                uint32_t levelsGained = addXp(xpEarned);
+                results.xpEarned = xpEarned;
+                results.levelsGained = levelsGained;
+            }
+
             resultsScreen(&results, life == 0);
         }
     }

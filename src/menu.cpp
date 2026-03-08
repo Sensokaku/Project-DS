@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <dirent.h>
 #include <vector>
+#include <cmath>
 
 #include <nds.h>
 
@@ -35,6 +36,7 @@
 #include "audio.h"
 #include "database.h"
 #include "game.h"
+#include "save.h"
 
 static const char a[] = {' ', '>'};
 
@@ -373,6 +375,10 @@ void songList()
         }
     }
 
+    // Show PlayerData
+    PlayerData &pd = getPlayerData();
+    printf("\x1b[0;0HLv.%lu", pd.level);
+
     // Infer names for all the files that might need to be accessed
     std::string dscName = "/project-ds/dsc/pv_" + charts[difficulty][selection] + ends[difficulty];
     std::string oggName = "/project-ds/ogg/pv_" + charts[difficulty][selection] + ".ogg";
@@ -563,6 +569,13 @@ void resultsScreen(Results *results, bool fail)
     // Show the total score at the bottom
     uint32_t score = results->scoreBase + results->scoreHold + results->scoreSlide;
     printf("\x1b[18;6HSCORE %13lu", score);
+
+    // Show PlayerData
+    PlayerData &pd = getPlayerData();
+    printf("\x1b[16;0HLv.%lu  XP:%lu/%lu", pd.level, pd.xp, getXpForLevel(pd.level));
+    printf("\x1b[17;0H+%lu XP", results->xpEarned);
+    if (results->levelsGained > 0)
+        printf("  LEVEL UP!");
 
     // Update the saved scores if any records were broken
     bool update = false;
