@@ -34,6 +34,8 @@ extern void stopSong();
 void loadHitSounds();
 void playButtonSound();
 void playSlideSound();
+void playHoldSound(uint32_t durationSamples);
+void stopHoldSound();
 
 extern bool convertSong(std::string &src, std::string &dst);
 

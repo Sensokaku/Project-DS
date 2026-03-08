@@ -578,6 +578,9 @@ void gameLoop()
                         // Detect the end of a held slide
                         if (notes.size() == current || !(notes[current].type & BIT(7)))
                         {
+                            // LOCATION 2 GOES HERE (shown below)
+                            stopHoldSound();
+
                             // Add a 1000-point bonus if the slide was never broken
                             if (!slideBroken)
                                 results.scoreSlide += 1000;
@@ -668,6 +671,33 @@ void gameLoop()
                                 holdTime = 0;
                             }
                         }
+
+                        // *** LOCATION 1: START HOLD SOUND ***
+                        // Start hold sound if we hit an initial held slide
+                        for (size_t i = 0; i < (size_t)current; i++)
+                        {
+                            if (notes[i].type & BIT(6))
+                            {
+                                // Scan ahead to find the last continuation note of this slide
+                                uint32_t startTime = notes[i].time;
+                                uint32_t endTime = startTime;
+                                for (size_t j = current; j < notes.size(); j++)
+                                {
+                                    if (notes[j].type & BIT(7))
+                                        endTime = notes[j].time;
+                                    else
+                                        break;
+                                }
+
+                                // Convert hold duration from game timer units to audio samples
+                                // Game timer runs at ~100000 per second, audio at 22050 Hz
+                                uint32_t durationSamples = (uint32_t)((uint64_t)(endTime - startTime) * 22050 / 100000);
+
+                                if (durationSamples > 0)
+                                    playHoldSound(durationSamples);
+                                break;
+                            }
+                        }
                     }
 
                     // Clear the notes that were hit
@@ -680,6 +710,7 @@ void gameLoop()
                     if (notes[0].type & BIT(7))
                     {
                         // Break the slide combo if a held slide wasn't cleared in time
+                        stopHoldSound();
                         slideCount = 0;
                         slideBroken = true;
                     }
@@ -904,6 +935,7 @@ void gameLoop()
 
 void gameReset()
 {
+    stopHoldSound();
     // Reset the current chart
     notes.clear();
     counter = 1;

@@ -35,10 +35,15 @@ const int magicNumber = 88344;
 // Hitsound state
 static int16_t *buttonSndData = nullptr;
 static int16_t *slideSndData = nullptr;
+static int16_t *holdSndData = nullptr;
 static int32_t buttonSndSamples = 0;
 static int32_t slideSndSamples = 0;
+static int32_t holdSndSamples = 0;
 static volatile int32_t buttonSndPos = -1;
 static volatile int32_t slideSndPos = -1;
+static volatile bool holdSndActive = false;
+static volatile uint32_t holdSndFracPos = 0;
+static volatile uint32_t holdSndInc = 1 << 12;
 
 static inline int16_t clampSample(int32_t val)
 {
@@ -97,6 +102,40 @@ mix_hitsounds:
             slideSndPos = -1;
     }
 
+    // Mix hold hitsound into the stream buffer (variable speed)
+    if (holdSndActive && holdSndData)
+    {
+        for (uint32_t i = 0; i < length; i++)
+        {
+            uint32_t sampleIdx = holdSndFracPos >> 12;
+            if (sampleIdx >= (uint32_t)holdSndSamples)
+            {
+                holdSndActive = false;
+                break;
+            }
+
+            // Get the next sample index for interpolation
+            uint32_t nextIdx = sampleIdx + 1;
+            if (nextIdx >= (uint32_t)holdSndSamples)
+                nextIdx = sampleIdx;
+
+            // Linear interpolation between samples for smoother playback
+            int32_t frac = holdSndFracPos & 0xFFF;
+            int32_t invFrac = 0x1000 - frac;
+
+            int32_t sl = (holdSndData[sampleIdx * 2 + 0] * invFrac +
+                          holdSndData[nextIdx   * 2 + 0] * frac) >> 12;
+            int32_t sr = (holdSndData[sampleIdx * 2 + 1] * invFrac +
+                          holdSndData[nextIdx   * 2 + 1] * frac) >> 12;
+
+            int32_t l = buf[i * 2 + 0] + sl;
+            int32_t r = buf[i * 2 + 1] + sr;
+            buf[i * 2 + 0] = clampSample(l);
+            buf[i * 2 + 1] = clampSample(r);
+            holdSndFracPos += holdSndInc;
+        }
+    }
+
     return length;
 }
 
@@ -152,6 +191,25 @@ void loadHitSounds()
     }
 }
 
+    // Load hold hitsound (stereo 16-bit 22050 Hz raw PCM)
+    f = fopen("/project-ds/pcm/sfx/hold.pcm", "rb");
+    if (f)
+    {
+        fseek(f, 0, SEEK_END);
+        uint32_t size = ftell(f);
+        fseek(f, 0, SEEK_SET);
+        if (holdSndData) { free(holdSndData); holdSndData = nullptr; }
+        holdSndData = (int16_t *)malloc(size);
+        fread(holdSndData, 1, size, f);
+        fclose(f);
+        holdSndSamples = size / 4;
+        printf("Hold SFX: %ld samples\n", holdSndSamples);
+    }
+    else
+    {
+        printf("Hold SFX NOT FOUND!\n");
+    }
+
 void playButtonSound()
 {
     buttonSndPos = 0;
@@ -160,6 +218,23 @@ void playButtonSound()
 void playSlideSound()
 {
     slideSndPos = 0;
+}
+
+void playHoldSound(uint32_t durationSamples)
+{
+    if (durationSamples > 0 && holdSndSamples > 0)
+    {
+        // Calculate playback speed so the sample fits exactly in the hold duration
+        // Uses 12-bit fractional fixed-point to avoid overflow with longer samples
+        holdSndInc = ((uint64_t)holdSndSamples << 12) / durationSamples;
+        holdSndFracPos = 0;
+        holdSndActive = true;
+    }
+}
+
+void stopHoldSound()
+{
+    holdSndActive = false;
 }
 
 void setLagConfig(int ms)
