@@ -102,13 +102,13 @@ void loadHitSounds()
 void playButtonSound()
 {
     if (buttonSndData)
-        soundPlaySample(buttonSndData, SoundFormat_16Bit, buttonSndLen, 22050, 127, 64, false, 0);
+        soundPlaySample(buttonSndData, SoundFormat_16Bit, buttonSndLen, 44100, 127, 64, false, 0);
 }
 
 void playSlideSound()
 {
     if (slideSndData)
-        soundPlaySample(slideSndData, SoundFormat_16Bit, slideSndLen, 22050, 127, 64, false, 0);
+        soundPlaySample(slideSndData, SoundFormat_16Bit, slideSndLen, 44100, 127, 64, false, 0);
 }
 
 void setLagConfig(int ms)
