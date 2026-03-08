@@ -105,6 +105,8 @@ static uint8_t life = 127;
 static uint32_t scoreRef = 0;
 static uint8_t holdDivide = 1;
 
+static size_t currentDifficulty = 0;
+
 static Results results;
 
 static const uint8_t paramCounts[0x100] =
@@ -1020,6 +1022,7 @@ void gameReset()
 
 void loadChart(std::string &chartName, std::string &songName2, size_t difficulty, bool retry)
 {
+    currentDifficulty = difficulty;
     // Load a new chart file into memory
     FILE *chartFile = fopen(chartName.c_str(), "rb");
     fseek(chartFile, 0, SEEK_END);
