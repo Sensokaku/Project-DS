@@ -172,7 +172,7 @@ void loadHitSounds()
     }
 
     // Load slide hitsound (stereo 16-bit 22050 Hz raw PCM)
-    f = fopen("/project-ds/pcm/sfx/slide.pcm", "rb");
+    FILE *f = fopen("/project-ds/pcm/sfx/slide.pcm", "rb");
     if (f)
     {
         fseek(f, 0, SEEK_END);
