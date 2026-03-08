@@ -473,6 +473,15 @@ void gameLoop()
         uint16_t down = keysDown();
         uint16_t up   = keysUp();
 
+        // === HITSOUNDS ===
+        // Main buttons: Triangle (X/UP), Circle (A/RIGHT), Cross (B/DOWN), Square (Y/LEFT)
+        if (down & (KEY_X | KEY_UP | KEY_A | KEY_RIGHT | KEY_B | KEY_DOWN | KEY_Y | KEY_LEFT))
+            playButtonHitsound();
+
+        // Slide buttons: L and R
+        if (down & (KEY_L | KEY_R))
+            playSlideHitsound();
+
         if (!notes.empty() && notes[0].time - FRAME_TIME * 12 < timer)
         {
             // Get the keys that need to be pressed for the current notes

@@ -185,7 +185,6 @@ void menuInit()
     dmaCopy(song_listPal, BG_PALETTE_SUB, 3 * sizeof(uint16_t));
     bgSetRotateScale(bg, 0, 1 << 7, 1 << 8);
     bgUpdate();
-
     // Set and enable the H-blank interrupt
     irqSet(IRQ_HBLANK, bgHBlank);
     REG_DISPSTAT |= BIT(4);
@@ -193,9 +192,12 @@ void menuInit()
 
 void songList()
 {
+    int current_playing_pv = 0;
     // Clear any sprites that were set
     oamClear(&oamSub, 0, 0);
+    oamClear(&oamMain, 0, 0);
     oamUpdate(&oamSub);
+    oamUpdate(&oamMain);
 
     // Ensure there are files present
     if (charts[0].empty() && charts[1].empty() && charts[2].empty() && charts[3].empty() && charts[4].empty())
@@ -213,6 +215,14 @@ void songList()
     irqEnable(IRQ_HBLANK);
 
     uint8_t frames = 1;
+    static const uint16_t pal[] =
+    {
+        ARGB16(1,  0, 19, 23), // Easy
+        ARGB16(1,  3, 22,  1), // Normal
+        ARGB16(1, 26, 18,  0), // Hard
+        ARGB16(1, 27,  0,  4), // Extreme
+        ARGB16(1, 21,  2, 28)  // Extra Extreme
+    };
 
     // Show the file browser
     while (true)
@@ -230,14 +240,14 @@ void songList()
         }
 
         // Define accent colors for each difficulty
-        static const uint16_t pal[] =
-        {
-            ARGB16(1,  0, 19, 23), // Easy
-            ARGB16(1,  3, 22,  1), // Normal
-            ARGB16(1, 26, 18,  0), // Hard
-            ARGB16(1, 27,  0,  4), // Extreme
-            ARGB16(1, 21,  2, 28)  // Extra Extreme
-        };
+        // static const uint16_t pal[] =
+        // {
+        //     ARGB16(1,  0, 19, 23), // Easy
+        //     ARGB16(1,  3, 22,  1), // Normal
+        //     ARGB16(1, 26, 18,  0), // Hard
+        //     ARGB16(1, 27,  0,  4), // Extreme
+        //     ARGB16(1, 21,  2, 28)  // Extra Extreme
+        // };
 
         // Adjust the background to reflect the current selections
         BG_PALETTE_SUB[2] = pal[difficulty];
@@ -264,25 +274,29 @@ void songList()
         keysDown();
 
         // Wait for button input
+        int pv_num = std::stoi(charts[difficulty][selection]);
+        SongData &data = songData[pv_num];
         while (!(down & (KEY_A | KEY_Y | KEY_LEFT | KEY_RIGHT)) && !(held & (KEY_UP | KEY_DOWN)))
         {
             scanKeys();
             down = keysDown();
             held = keysHeld();
-
             // On the first frame inputs are released, start playing a song preview
             if (!(held & (KEY_UP | KEY_DOWN)) && frames > 0)
             {
                 frames = 0;
-                std::string name = "/project-ds/pcm/pv_" + charts[difficulty][selection] + ".pcm";
-                playSong(name);
+                if (current_playing_pv != pv_num) {
+                    stopSong();
+                    std::string name = "/project-ds/pcm/pv_" + charts[difficulty][selection] + ".pcm";
+                    // playSong(name);
+                    playPreview(name, data.startTime);
+                    current_playing_pv = pv_num;
+                };
             }
 
             updateSong();
             swiWaitForVBlank();
         }
-
-        stopSong();
 
         if (down & KEY_A)
         {
@@ -309,9 +323,20 @@ void songList()
             // Move the difficulty selection left with wraparound
             if (frames++ == 0)
             {
+                int curr_pv = std::stoi(charts[difficulty][selection]);
                 selection = 0;
                 if (difficulty-- == 0)
                     difficulty = 4;
+                
+                for(size_t f_i = 0; f_i < charts[difficulty].size(); f_i++)
+                {
+                    if(curr_pv == std::stoi(charts[difficulty][f_i]))
+                    {
+                        selection = f_i;
+                        break;
+                    }
+                }
+
             }
         }
         else if (down & KEY_RIGHT)
@@ -319,9 +344,19 @@ void songList()
             // Move the difficulty selection right with wraparound
             if (frames++ == 0)
             {
+                int curr_pv = std::stoi(charts[difficulty][selection]);
                 selection = 0;
                 if (++difficulty == 5)
                     difficulty = 0;
+
+                for(size_t f_i = 0; f_i < charts[difficulty].size(); f_i++)
+                {
+                    if(curr_pv == std::stoi(charts[difficulty][f_i]))
+                    {
+                        selection = f_i;
+                        break;
+                    }
+                }
             }
         }
         else if (held & KEY_UP)

@@ -45,6 +45,7 @@ struct SongData
     uint32_t scores[5] = {};
     float clears[5] = {};
     uint8_t ranks[5] = {};
+    int startTime = 0;
 };
 
 extern SongData songData[1000];

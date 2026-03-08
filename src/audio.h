@@ -26,9 +26,14 @@ extern void audioInit();
 extern void setLagConfig(int ms);
 
 extern void playSong(std::string &name);
+extern void playPreview(std::string &name, int &db_offset);
 extern void resumeSong();
 extern void updateSong();
 extern void stopSong();
+
+// Hitsound functions
+extern void playButtonHitsound();
+extern void playSlideHitsound();
 
 extern bool convertSong(std::string &src, std::string &dst);
 

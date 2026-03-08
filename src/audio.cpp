@@ -20,6 +20,8 @@
 #include <cstring>
 #include <maxmod9.h>
 #include <nds.h>
+#include "soundbank.h"
+#include "soundbank_bin.h"
 
 #include "vorbis/codec.h"
 
@@ -30,6 +32,7 @@ static FILE *song = nullptr;
 static int lagConfig = 0;
 static int songWait = 0;
 static int songOffset = 0;
+const int magicNumber = 88344;
 
 static mm_word audioCallback(mm_word length, mm_addr dest, mm_stream_formats format)
 {
@@ -48,15 +51,47 @@ static mm_word audioCallback(mm_word length, mm_addr dest, mm_stream_formats for
     return length;
 }
 
+// Hitsound effect handles
+static mm_sound_effect sfxButton;
+static mm_sound_effect sfxSlide;
+
 void audioInit()
 {
-    // Prepare the audio stream
+    // Initialize maxmod with the soundbank for sound effects
+    // 2 = number of sound effects to allocate channels for
+    mmInitDefaultMem((mm_addr)soundbank_bin);
+
+    // Set up button hitsound
+    sfxButton.id      = SFX_BUTTON;  // from soundbank.h
+    sfxButton.rate     = 1024;            // 1.0 playback rate (1024 = normal)
+    sfxButton.handle   = 0;
+    sfxButton.volume   = 255;             // max volume
+    sfxButton.panning  = 128;             // center
+
+    // Set up slide hitsound
+    sfxSlide.id       = SFX_SLIDE;   // from soundbank.h
+    sfxSlide.rate      = 1024;
+    sfxSlide.handle    = 0;
+    sfxSlide.volume    = 255;
+    sfxSlide.panning   = 128;
+
+    // Prepare the audio stream (existing code)
     stream.sampling_rate = 44100 / 2;
     stream.buffer_length = 1024;
     stream.callback      = audioCallback;
     stream.format        = MM_STREAM_16BIT_STEREO;
     stream.timer         = MM_TIMER0;
     stream.manual        = true;
+}
+
+void playButtonHitsound()
+{
+    mmEffectEx(&sfxButton);
+}
+
+void playSlideHitsound()
+{
+    mmEffectEx(&sfxSlide);
 }
 
 void setLagConfig(int ms)
@@ -76,6 +111,21 @@ void playSong(std::string &name)
     {
         if ((songWait = lagConfig) < 0)
             fseek(song, -lagConfig, SEEK_SET);
+        mmStreamOpen(&stream);
+    }
+}
+
+void playPreview(std::string &name, int &db_offset)
+{
+    // Reset the PCM stream
+    if (song) fclose(song);
+    songOffset = db_offset * magicNumber;
+
+    // Open and play a PCM file if it exists, skipping ahead if early
+    if ((song = fopen(name.c_str(), "rb")))
+    {
+        // if ((songWait = lagConfig) < 0)
+        fseek(song, songOffset, SEEK_SET);
         mmStreamOpen(&stream);
     }
 }

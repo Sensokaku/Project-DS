@@ -23,6 +23,7 @@
 #include <nds.h>
 
 #include "database.h"
+#include "loading_screen.h"
 
 static const std::string diffs[] =
 {
@@ -68,15 +69,19 @@ void databaseInit()
     {
         while (dirent *entry = readdir(dir))
         {
+            // loadingStep();
             std::string name = (std::string)"/project-ds/db/" + entry->d_name;
             if (name.substr(name.length() - 4) == ".txt")
             {
                 if (FILE *file = fopen(name.c_str(), "r"))
                 {
+                    // printf("%s \n", name.c_str());
                     char line[512];
                     while (fgets(line, 512, file))
                     {
+                        loadingStep();
                         std::string str = line;
+                        // printf("Loading: %s \n", str);
                         if (str.length() > 20 && str.substr(7, 13) == "song_name_en=")
                         {
                             // Set a song name from the database
@@ -123,6 +128,11 @@ void databaseInit()
                             // Set an extra extreme difficulty level as fixed-point with a 1-bit fractional
                             uint8_t diff = std::stoi(str.substr(40, 2)) * 2 + std::stoi(str.substr(43, 1)) / 5;
                             songData[std::stoi(str.substr(3, 3))].diffExEx = diff;
+                        }
+                        else if (str.length() > 23 && str.substr(7, 16) == "sabi.start_time=")
+                        {
+                            // Set song start preview time
+                            songData[std::stoi(str.substr(3, 3))].startTime = std::stoi(str.substr(23, 2));
                         }
                     }
 

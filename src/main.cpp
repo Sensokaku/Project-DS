@@ -26,6 +26,7 @@
 #include "database.h"
 #include "game.h"
 #include "menu.h"
+#include "loading_screen.h"
 
 int main()
 {
@@ -41,7 +42,7 @@ int main()
     videoSetMode(MODE_3_2D);
     vramSetBankA(VRAM_A_MAIN_SPRITE);
     oamInit(&oamMain, SpriteMapping_Bmp_1D_128, false);
-    BG_PALETTE[0] = ARGB16(1, 16, 16, 16);
+    BG_PALETTE[0] = ARGB16(1, 0, 0, 0);
 
     // Setup graphics on the sub screen
     videoSetModeSub(MODE_3_2D);
@@ -56,7 +57,9 @@ int main()
 
     // Initialize the game
     audioInit();
+    startLoadingScreen();
     databaseInit();
+    loadingStop();
     gameInit();
     menuInit();
 
