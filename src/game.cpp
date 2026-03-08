@@ -704,7 +704,7 @@ void gameLoop()
                                 uint32_t durationTicks = endTime - startTime;
                                 uint32_t durationSamples = (uint32_t)((uint64_t)durationTicks * 22050 / (FRAME_TIME * 60));
 
-                                printf("\x1b[17;0Hsamples:%lu src:%ld", durationSamples,);
+                                printf("\x1b[17;0Hsamples:%lu src:%ld", durationSamples);
 
                                 if (durationSamples > 0)
                                     playHoldSound(durationSamples);
