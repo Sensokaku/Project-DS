@@ -67,6 +67,8 @@ void audioInit()
 
 void loadHitSounds()
 {
+    // Reserve 2 hardware channels from maxmod so they're always free for hitsounds
+    mmLockChannels(BIT(14) | BIT(15));
     // Load button hitsound (raw 16-bit signed mono PCM)
     FILE *f = fopen("/project-ds/pcm/sfx/button.pcm", "rb");
     if (f)
@@ -94,9 +96,6 @@ void loadHitSounds()
         fclose(f);
         DC_FlushRange(slideSndData, slideSndLen);
     }
-
-    // Ensure hardware sound is enabled (safe to call even if maxmod already did it)
-    soundEnable();
 }
 
 void playButtonSound()
