@@ -172,7 +172,7 @@ void loadHitSounds()
     }
 
     // Load slide hitsound (stereo 16-bit 22050 Hz raw PCM)
-    FILE *f = fopen("/project-ds/pcm/sfx/slide.pcm", "rb");
+    f = fopen("/project-ds/pcm/sfx/slide.pcm", "rb");
     if (f)
     {
         fseek(f, 0, SEEK_END);
@@ -189,7 +189,6 @@ void loadHitSounds()
     {
         printf("Slide SFX NOT FOUND!\n");
     }
-}
 
     // Load hold hitsound (stereo 16-bit 22050 Hz raw PCM)
     f = fopen("/project-ds/pcm/sfx/hold.pcm", "rb");
@@ -209,6 +208,7 @@ void loadHitSounds()
     {
         printf("Hold SFX NOT FOUND!\n");
     }
+}
 
 void playButtonSound()
 {
