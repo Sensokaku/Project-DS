@@ -479,9 +479,9 @@ void gameLoop()
 
         // Play hitsounds on button press
         if (down & (KEY_X | KEY_UP | KEY_A | KEY_RIGHT | KEY_B | KEY_DOWN | KEY_Y | KEY_LEFT))
-            playButtonHitsound();
+            playButtonSound();
         if (down & (KEY_L | KEY_R))
-            playSlideHitsound();
+            playSlideSound();
 
         if (!notes.empty() && notes[0].time - FRAME_TIME * 12 < timer)
         {
