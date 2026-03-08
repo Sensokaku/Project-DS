@@ -31,9 +31,9 @@ extern void resumeSong();
 extern void updateSong();
 extern void stopSong();
 
-// Hitsound functions
-extern void playButtonHitsound();
-extern void playSlideHitsound();
+void loadHitSounds();
+void playButtonSound();
+void playSlideSound();
 
 extern bool convertSong(std::string &src, std::string &dst);
 
