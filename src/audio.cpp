@@ -21,6 +21,7 @@
 #include <maxmod9.h>
 #include <nds.h>
 #include <malloc.h>
+#include <algorithm>
 
 #include "vorbis/codec.h"
 
@@ -32,60 +33,65 @@ static int lagConfig = 0;
 static int songWait = 0;
 static int songOffset = 0;
 const int magicNumber = 88344;
-// Hitsound buffers
-static void *buttonSndData = nullptr;
-static void *slideSndData = nullptr;
-static u32 buttonSndLen = 0;
-static u32 slideSndLen = 0;
-
-static void *loadPcmFile(const char *path, u32 &outLen)
-{
-    FILE *f = fopen(path, "rb");
-    if (!f)
-    {
-        outLen = 0;
-        return nullptr;
-    }
-
-    fseek(f, 0, SEEK_END);
-    outLen = ftell(f);
-    fseek(f, 0, SEEK_SET);
-
-    // Use memalign for 32-byte alignment required by sound DMA
-    void *data = memalign(32, outLen);
-    if (!data)
-    {
-        fclose(f);
-        outLen = 0;
-        return nullptr;
-    }
-
-    // Clear the buffer first
-    memset(data, 0, outLen);
-    fread(data, 1, outLen, f);
-    fclose(f);
-
-    // Flush the data cache so the ARM7 can see it
-    DC_FlushRange(data, outLen);
-
-    return data;
-}
+// Hitsound state
+static int16_t *buttonSndData = nullptr;
+static int16_t *slideSndData = nullptr;
+static int32_t buttonSndSamples = 0;
+static int32_t slideSndSamples = 0;
+static volatile int32_t buttonSndPos = -1;
+static volatile int32_t slideSndPos = -1;
 
 
 static mm_word audioCallback(mm_word length, mm_addr dest, mm_stream_formats format)
 {
+    int16_t *buf = (int16_t *)dest;
+
     // Prepend the stream with empty data if delayed
     if (songWait > 0)
     {
         songWait -= length * 4;
         memset(dest, 0, length * 4);
-        if (songWait >= 0) return length;
-        fread(dest + length * 4 + songWait, sizeof(int16_t), -songWait / 2, song);
-        return length;
+        if (songWait >= 0)
+        {
+            // Mix hitsounds into silence
+            goto mix_hitsounds;
+        }
+        fread((uint8_t *)dest + length * 4 + songWait, sizeof(int16_t), -songWait / 2, song);
+        goto mix_hitsounds;
     }
 
     // Load more PCM samples from file
     fread(dest, sizeof(int16_t), length * 2, song);
+
+mix_hitsounds:
+    // Mix button hitsound into the stream buffer
+    if (buttonSndPos >= 0 && buttonSndData)
+    {
+        for (uint32_t i = 0; i < length && buttonSndPos < buttonSndSamples; i++, buttonSndPos++)
+        {
+            int32_t l = buf[i * 2 + 0] + buttonSndData[buttonSndPos * 2 + 0];
+            int32_t r = buf[i * 2 + 1] + buttonSndData[buttonSndPos * 2 + 1];
+            buf[i * 2 + 0] = std::clamp(l, -32768, 32767);
+            buf[i * 2 + 1] = std::clamp(r, -32768, 32767);
+        }
+        if (buttonSndPos >= buttonSndSamples)
+            buttonSndPos = -1;
+    }
+
+    // Mix slide hitsound into the stream buffer
+    if (slideSndPos >= 0 && slideSndData)
+    {
+        for (uint32_t i = 0; i < length && slideSndPos < slideSndSamples; i++, slideSndPos++)
+        {
+            int32_t l = buf[i * 2 + 0] + slideSndData[slideSndPos * 2 + 0];
+            int32_t r = buf[i * 2 + 1] + slideSndData[slideSndPos * 2 + 1];
+            buf[i * 2 + 0] = std::clamp(l, -32768, 32767);
+            buf[i * 2 + 1] = std::clamp(r, -32768, 32767);
+        }
+        if (slideSndPos >= slideSndSamples)
+            slideSndPos = -1;
+    }
+
     return length;
 }
 
@@ -102,25 +108,53 @@ void audioInit()
 
 void loadHitSounds()
 {
-    mmLockChannels(BIT(14) | BIT(15));
+    // Load button hitsound (stereo 16-bit 22050 Hz raw PCM)
+    FILE *f = fopen("/project-ds/pcm/sfx/button.pcm", "rb");
+    if (f)
+    {
+        fseek(f, 0, SEEK_END);
+        uint32_t size = ftell(f);
+        fseek(f, 0, SEEK_SET);
+        if (buttonSndData) { free(buttonSndData); buttonSndData = nullptr; }
+        buttonSndData = (int16_t *)malloc(size);
+        fread(buttonSndData, 1, size, f);
+        fclose(f);
+        buttonSndSamples = size / 4;  // 4 bytes per stereo sample pair
+        printf("Button SFX: %ld samples\n", buttonSndSamples);
+    }
+    else
+    {
+        printf("Button SFX NOT FOUND!\n");
+    }
 
-    if (buttonSndData) { free(buttonSndData); buttonSndData = nullptr; }
-    if (slideSndData)  { free(slideSndData);  slideSndData = nullptr;  }
-
-    buttonSndData = loadPcmFile("/project-ds/pcm/sfx/button.pcm", buttonSndLen);
-    slideSndData  = loadPcmFile("/project-ds/pcm/sfx/slide.pcm",  slideSndLen);
+    // Load slide hitsound (stereo 16-bit 22050 Hz raw PCM)
+    f = fopen("/project-ds/pcm/sfx/slide.pcm", "rb");
+    if (f)
+    {
+        fseek(f, 0, SEEK_END);
+        uint32_t size = ftell(f);
+        fseek(f, 0, SEEK_SET);
+        if (slideSndData) { free(slideSndData); slideSndData = nullptr; }
+        slideSndData = (int16_t *)malloc(size);
+        fread(slideSndData, 1, size, f);
+        fclose(f);
+        slideSndSamples = size / 4;
+        printf("Slide SFX: %ld samples\n", slideSndSamples);
+    }
+    else
+    {
+        printf("Slide SFX NOT FOUND!\n");
+    }
 }
 
 void playButtonSound()
 {
-    if (buttonSndData && buttonSndLen > 0)
-        soundPlaySample(buttonSndData, SoundFormat_16Bit, buttonSndLen, 44100, 127, 64, false, 0);
+    buttonSndPos = 0;
 }
 
 void playSlideSound()
 {
-    if (slideSndData && slideSndLen > 0)
-        soundPlaySample(slideSndData, SoundFormat_16Bit, slideSndLen, 44100, 127, 64, false, 0);
+    slideSndPos = 0;
 }
 
 void setLagConfig(int ms)
