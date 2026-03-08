@@ -573,8 +573,8 @@ void resultsScreen(Results *results, bool fail)
 
     // Show PlayerData
     PlayerData &pd = getPlayerData();
-    printf("\x1b[0;0HLv.%lu  XP:%lu/%lu", pd.level, pd.xp, getXpForLevel(pd.level));
-    printf("\x1b[1;0H+%lu XP", results->xpEarned);
+    printf("\x1b[20;6HLv.%lu  XP:%lu/%lu", pd.level, pd.xp, getXpForLevel(pd.level));
+    printf("\x1b[21;6H+%lu XP", results->xpEarned);
     if (results->levelsGained > 0)
         printf("  LEVEL UP!");
 
