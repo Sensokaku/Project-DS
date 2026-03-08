@@ -20,6 +20,7 @@
 #include <cstring>
 #include <maxmod9.h>
 #include <nds.h>
+#include <malloc.h>
 
 #include "vorbis/codec.h"
 
@@ -36,6 +37,40 @@ static void *buttonSndData = nullptr;
 static void *slideSndData = nullptr;
 static u32 buttonSndLen = 0;
 static u32 slideSndLen = 0;
+
+static void *loadPcmFile(const char *path, u32 &outLen)
+{
+    FILE *f = fopen(path, "rb");
+    if (!f)
+    {
+        outLen = 0;
+        return nullptr;
+    }
+
+    fseek(f, 0, SEEK_END);
+    outLen = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    // Use memalign for 32-byte alignment required by sound DMA
+    void *data = memalign(32, outLen);
+    if (!data)
+    {
+        fclose(f);
+        outLen = 0;
+        return nullptr;
+    }
+
+    // Clear the buffer first
+    memset(data, 0, outLen);
+    fread(data, 1, outLen, f);
+    fclose(f);
+
+    // Flush the data cache so the ARM7 can see it
+    DC_FlushRange(data, outLen);
+
+    return data;
+}
+
 
 static mm_word audioCallback(mm_word length, mm_addr dest, mm_stream_formats format)
 {
@@ -67,46 +102,24 @@ void audioInit()
 
 void loadHitSounds()
 {
-    // Reserve 2 hardware channels from maxmod so they're always free for hitsounds
     mmLockChannels(BIT(14) | BIT(15));
-    // Load button hitsound (raw 16-bit signed mono PCM)
-    FILE *f = fopen("/project-ds/pcm/sfx/button.pcm", "rb");
-    if (f)
-    {
-        fseek(f, 0, SEEK_END);
-        buttonSndLen = ftell(f);
-        fseek(f, 0, SEEK_SET);
-        if (buttonSndData) free(buttonSndData);
-        buttonSndData = malloc(buttonSndLen);
-        fread(buttonSndData, 1, buttonSndLen, f);
-        fclose(f);
-        DC_FlushRange(buttonSndData, buttonSndLen);
-    }
 
-    // Load slide hitsound (raw 16-bit signed mono PCM)
-    f = fopen("/project-ds/pcm/sfx/slide.pcm", "rb");
-    if (f)
-    {
-        fseek(f, 0, SEEK_END);
-        slideSndLen = ftell(f);
-        fseek(f, 0, SEEK_SET);
-        if (slideSndData) free(slideSndData);
-        slideSndData = malloc(slideSndLen);
-        fread(slideSndData, 1, slideSndLen, f);
-        fclose(f);
-        DC_FlushRange(slideSndData, slideSndLen);
-    }
+    if (buttonSndData) { free(buttonSndData); buttonSndData = nullptr; }
+    if (slideSndData)  { free(slideSndData);  slideSndData = nullptr;  }
+
+    buttonSndData = loadPcmFile("/project-ds/pcm/sfx/button.pcm", buttonSndLen);
+    slideSndData  = loadPcmFile("/project-ds/pcm/sfx/slide.pcm",  slideSndLen);
 }
 
 void playButtonSound()
 {
-    if (buttonSndData)
+    if (buttonSndData && buttonSndLen > 0)
         soundPlaySample(buttonSndData, SoundFormat_16Bit, buttonSndLen, 44100, 127, 64, false, 0);
 }
 
 void playSlideSound()
 {
-    if (slideSndData)
+    if (slideSndData && slideSndLen > 0)
         soundPlaySample(slideSndData, SoundFormat_16Bit, slideSndLen, 44100, 127, 64, false, 0);
 }
 
