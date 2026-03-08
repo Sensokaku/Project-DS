@@ -673,7 +673,7 @@ void gameLoop()
                         }
 
                         // *** LOCATION 1: START HOLD SOUND ***
-                        // Start hold sound if we hit an initial held slide
+// Start hold sound if we hit an initial held slide
                         for (size_t i = 0; i < (size_t)current; i++)
                         {
                             if (notes[i].type & BIT(6))
@@ -681,17 +681,30 @@ void gameLoop()
                                 // Scan ahead to find the last continuation note of this slide
                                 uint32_t startTime = notes[i].time;
                                 uint32_t endTime = startTime;
+                                uint32_t slideNotes = 0;
                                 for (size_t j = current; j < notes.size(); j++)
                                 {
                                     if (notes[j].type & BIT(7))
+                                    {
                                         endTime = notes[j].time;
+                                        slideNotes++;
+                                    }
                                     else
                                         break;
                                 }
 
+                                // Debug: show what we found
+                                printf("\x1b[15;0H                                ");
+                                printf("\x1b[16;0H                                ");
+                                printf("\x1b[17;0H                                ");
+                                printf("\x1b[15;0Hstart:%lu end:%lu", startTime, endTime);
+                                printf("\x1b[16;0Hnotes:%lu diff:%lu", slideNotes, endTime - startTime);
+
                                 // Convert hold duration from game timer units to audio samples
-                                // Game timer runs at ~100000 per second, audio at 22050 Hz
-                                uint32_t durationSamples = (uint32_t)((uint64_t)(endTime - startTime) * 22050 / 100000);
+                                uint32_t durationTicks = endTime - startTime;
+                                uint32_t durationSamples = (uint32_t)((uint64_t)durationTicks * 22050 / (FRAME_TIME * 60));
+
+                                printf("\x1b[17;0Hsamples:%lu src:%ld", durationSamples, holdSndSamples);
 
                                 if (durationSamples > 0)
                                     playHoldSound(durationSamples);
