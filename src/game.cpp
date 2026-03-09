@@ -81,6 +81,9 @@ static size_t chartSize = 0;
 static uint32_t *chart = nullptr;
 static std::string songName;
 
+static uint16_t *holdBoxFillGfx = nullptr;
+static uint16_t *holdBoxBorderGfx = nullptr;
+
 static uint32_t counter = 1;
 static uint32_t timer = 0;
 static uint32_t flyTime = 100000;
@@ -210,6 +213,32 @@ void gameInit()
     subGfx[1]  = initObjBitmap(&oamSub, life_fullBitmap,  life_fullBitmapLen,  SpriteSize_32x8);
 
     // Load hitsound samples
+
+        // Create dark fill sprite for hold box background
+    {
+        uint16_t data[32 * 32];
+        for (int y = 0; y < 32; y++)
+            for (int x = 0; x < 32; x++)
+                data[y * 32 + x] = ARGB16(1, 1, 1, 4);
+        holdBoxFillGfx = oamAllocateGfx(&oamMain, SpriteSize_32x32, SpriteColorFormat_Bmp);
+        if (holdBoxFillGfx) dmaCopy(data, holdBoxFillGfx, sizeof(data));
+    }
+
+    // Create border sprite for hold box (32x8 with top and bottom colored lines)
+    {
+        uint16_t data[32 * 8];
+        for (int y = 0; y < 8; y++)
+            for (int x = 0; x < 32; x++)
+            {
+                if (y == 0 || y == 7)
+                    data[y * 32 + x] = ARGB16(1, 12, 20, 31);
+                else
+                    data[y * 32 + x] = 0;
+            }
+        holdBoxBorderGfx = oamAllocateGfx(&oamMain, SpriteSize_32x8, SpriteColorFormat_Bmp);
+        if (holdBoxBorderGfx) dmaCopy(data, holdBoxBorderGfx, sizeof(data));
+    }
+
     loadHitSounds();
 
 }
@@ -713,10 +742,10 @@ void gameLoop()
             }
         }
 
-        // *** Cancel all note holds if any held button is released
+        // Cancel all note holds if any held button is released or pressed again
         for (int i = 0; i < 4; i++)
         {
-            if ((holdNotes & BIT(i)) && !(held & keys[i]))
+            if ((holdNotes & BIT(i)) && (!(held & keys[i]) || (down & keys[i])))
             {
                 holdNotes = 0;
                 holdStart = 0;
@@ -774,10 +803,10 @@ void gameLoop()
             }
         }
 
-        // *** Draw hold bonus display (Project Diva style - behind notes)
+        // Draw hold bonus display (Project Diva style with box)
         if (holdNotes)
         {
-            int32_t baseY = 160;
+            int32_t baseY = 152;
 
             // Count held buttons
             int holdCount = 0;
@@ -790,17 +819,46 @@ void gameLoop()
                 scoreDigits++;
             if (scoreDigits == 0) scoreDigits = 1;
 
-            // Calculate total width to center everything
-            int totalWidth = 8 + 4 + holdCount * 18 + 6 + scoreDigits * 7;
-            int32_t curX = 128 - totalWidth / 2;
+            // Calculate content width and box dimensions
+            int countWidth = (holdCount > 1) ? 12 : 0;
+            int iconsWidth = holdCount * 18;
+            int scoreWidth = scoreDigits * 7;
+            int contentWidth = countWidth + iconsWidth + 6 + scoreWidth;
+            int boxWidth = contentWidth + 16;  // 8px padding each side
+            int32_t boxX = 128 - boxWidth / 2;
+            int32_t boxH = 36;
+
+            // Draw dark background fill (tiled 32x32 sprites at priority 3)
+            for (int32_t bx = boxX; bx < boxX + boxWidth; bx += 32)
+            {
+                oamSet(&oamMain, sprite++, bx, baseY - 4, 0, 3, SpriteSize_32x32,
+                    SpriteColorFormat_Bmp, holdBoxFillGfx, -1, false, false, false, false, false);
+            }
+
+            // Draw top border
+            for (int32_t bx = boxX; bx < boxX + boxWidth; bx += 32)
+            {
+                oamSet(&oamMain, sprite++, bx, baseY - 8, 0, 2, SpriteSize_32x8,
+                    SpriteColorFormat_Bmp, holdBoxBorderGfx, -1, false, false, false, false, false);
+            }
+
+            // Draw bottom border
+            for (int32_t bx = boxX; bx < boxX + boxWidth; bx += 32)
+            {
+                oamSet(&oamMain, sprite++, bx, baseY + boxH - 8, 0, 2, SpriteSize_32x8,
+                    SpriteColorFormat_Bmp, holdBoxBorderGfx, -1, false, false, false, false, false);
+            }
+
+            // Position content inside the box
+            int32_t curX = boxX + 8;
 
             // Draw hold count number on the left
             if (holdCount > 1)
             {
-                oamSet(&oamMain, sprite++, curX, baseY + 4, 0, 2, SpriteSize_8x8,
+                oamSet(&oamMain, sprite++, curX, baseY + 10, 0, 2, SpriteSize_8x8,
                     SpriteColorFormat_Bmp, numGfx[holdCount], -1, false, false, false, false, false);
+                curX += 12;
             }
-            curX += 12;
 
             // Draw held button icons (scaled to half size)
             for (int i = 0; i < 4; i++)
@@ -811,27 +869,27 @@ void gameLoop()
                     {
                         int32_t scale = (holdTime % 40 < 20) ? (1 << 9) : ((1 << 9) + 16);
                         oamRotateScale(&oamMain, rotscale, 0, scale, scale);
-                        oamSet(&oamMain, sprite++, curX - 8, baseY - 8, 0, 2, SpriteSize_32x32,
+                        oamSet(&oamMain, sprite++, curX - 8, baseY - 2, 0, 2, SpriteSize_32x32,
                             SpriteColorFormat_Bmp, mainGfx[8 + i], rotscale++, false, false, false, false, false);
                     }
                     curX += 18;
                 }
-            }
+            } 
 
-            curX += 2;
+            curX += 6;
 
             // Draw hold score on the right
             int32_t numX = curX + scoreDigits * 7;
             if (holdDisplayScore == 0)
             {
-                oamSet(&oamMain, sprite++, curX, baseY + 4, 0, 2, SpriteSize_8x8,
+                oamSet(&oamMain, sprite++, curX, baseY + 10, 0, 2, SpriteSize_8x8,
                     SpriteColorFormat_Bmp, numGfx[0], -1, false, false, false, false, false);
             }
             else
             {
                 for (uint32_t s = holdDisplayScore; s > 0; s /= 10)
                 {
-                    oamSet(&oamMain, sprite++, numX -= 7, baseY + 4, 0, 2, SpriteSize_8x8,
+                    oamSet(&oamMain, sprite++, numX -= 7, baseY + 10, 0, 2, SpriteSize_8x8,
                         SpriteColorFormat_Bmp, numGfx[s % 10], -1, false, false, false, false, false);
                 }
             }
