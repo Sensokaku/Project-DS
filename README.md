@@ -1,9 +1,11 @@
 # Project DS (Fork)
-Project DIVA for the DS!
+A Fork of Project DS which is mainly code added by AI (I cannot code)
 
 ## My changes:
 - Hitsound support
 - Leveling/XP
+- Some Stat Tracking (Total songs played, P/E/G/S Totals)
+- Hold UI (Could be better)
 
 ## Changes from Zack0ne Fork:
 - loading screen
