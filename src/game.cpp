@@ -998,9 +998,9 @@ void gameLoop()
                     results.safes == 0 && results.fines == 0)
                 {
                     xpEarned += 50;
-                    pd.perfectCount++;
                 }
 
+                // --- Track rank totals ---
                 static uint8_t percents[5][3] =
                 {
                     { 30, 65, 80 },
@@ -1010,8 +1010,8 @@ void gameLoop()
                     { 70, 85, 95 }
                 };
 
-                if (results.comboMax == results.total)
-                    ;
+                if (results.comboMax >= results.total && results.total > 0)
+                    pd.perfectCount++;
                 else if (results.clear >= percents[currentDifficulty][2])
                     pd.excellentCount++;
                 else if (results.clear >= percents[currentDifficulty][1])
