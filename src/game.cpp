@@ -60,8 +60,6 @@
 #define FRAME_TIME 1672
 
 static uint32_t holdDisplayScore = 0;
-static int32_t holdX = 0;
-static int32_t holdY = 0;
 
 struct Note
 {
@@ -1082,7 +1080,6 @@ void gameLoop()
             resultsScreen(&results, life == 0);
         }
     }
-}
 
 void gameReset()
 {

@@ -11,6 +11,10 @@ struct PlayerData
     uint32_t songsPlayed;
     uint32_t songsClear;
     uint32_t perfectCount;
+    uint32_t excellentCount;
+    uint32_t greatCount;
+    uint32_t standardCount;
+    uint32_t dropoutCount;
 };
 
 void saveInit();
