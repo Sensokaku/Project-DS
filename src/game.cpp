@@ -726,9 +726,10 @@ void gameLoop()
         }
 
         // Cancel all note holds if any held button is released or pressed again
+        // holdStart > 0 prevents cancelling on the same frame the hold starts
         for (int i = 0; i < 4; i++)
         {
-            if ((holdNotes & BIT(i)) && (!(held & keys[i]) || (down & keys[i])))
+            if ((holdNotes & BIT(i)) && (!(held & keys[i]) || (holdStart > 0 && (down & keys[i]))))
             {
                 holdNotes = 0;
                 holdStart = 0;
