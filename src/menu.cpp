@@ -277,7 +277,7 @@ void songList()
 
         // Display player level
         PlayerData &pd = getPlayerData();
-        printf("\x1b[22;0HLv.%lu  XP:%lu/%lu Playcount:%lu", pd.level, pd.xp, pd.songsPlayed, getXpForLevel(pd.level));
+        printf("\x1b[22;0HLv.%lu  XP:%lu/%lu Playcount:%lu", pd.level, pd.xp, getXpForLevel(pd.level), pd.songsPlayed);
 
         // Wait for button input
         int pv_num = std::stoi(charts[difficulty][selection]);
