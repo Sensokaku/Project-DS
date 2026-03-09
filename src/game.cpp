@@ -81,8 +81,6 @@ static size_t chartSize = 0;
 static uint32_t *chart = nullptr;
 static std::string songName;
 
-static uint16_t *holdBoxBorderGfx = nullptr;
-
 static uint32_t counter = 1;
 static uint32_t timer = 0;
 static uint32_t flyTime = 100000;
@@ -97,6 +95,7 @@ static uint8_t holdNotes = 0;
 static uint8_t holdStart = 0;
 static uint16_t holdTime = 0;
 static uint16_t holdScore = 0;
+static uint8_t holdNew = 0;
 static uint32_t holdDisplayScore = 0;
 
 static uint32_t slideCount = 0;
@@ -212,16 +211,6 @@ void gameInit()
     subGfx[1]  = initObjBitmap(&oamSub, life_fullBitmap,  life_fullBitmapLen,  SpriteSize_32x8);
 
     // Load hitsound samples
-
-    // Create border sprite for hold box (8x8 colored tile, minimal VRAM)
-    {
-        uint16_t data[8 * 8];
-        for (int i = 0; i < 8 * 8; i++)
-            data[i] = ARGB16(1, 8, 16, 31);
-        holdBoxBorderGfx = oamAllocateGfx(&oamMain, SpriteSize_8x8, SpriteColorFormat_Bmp);
-        if (holdBoxBorderGfx) dmaCopy(data, holdBoxBorderGfx, sizeof(data));
-    }
-
     loadHitSounds();
 
 }
@@ -677,7 +666,8 @@ void gameLoop()
                                     holdDisplayScore = 0;
                                 }
 
-                                // Add this button to active holds
+                                // Mark as newly added and add to active holds
+                                holdNew |= BIT(notes[i].type & 0xF);
                                 holdNotes |= BIT(notes[i].type & 0xF);
                             }
                         }
@@ -726,10 +716,11 @@ void gameLoop()
         }
 
         // Cancel all note holds if any held button is released or pressed again
-        // holdStart > 0 prevents cancelling on the same frame the hold starts
+        // Skip buttons that were just added this frame
         for (int i = 0; i < 4; i++)
         {
-            if ((holdNotes & BIT(i)) && (!(held & keys[i]) || (holdStart > 0 && (down & keys[i]))))
+            if ((holdNotes & BIT(i)) && !(holdNew & BIT(i)) &&
+                (!(held & keys[i]) || (holdStart > 0 && (down & keys[i]))))
             {
                 holdNotes = 0;
                 holdStart = 0;
@@ -739,6 +730,9 @@ void gameLoop()
                 break;
             }
         }
+
+        // Clear the new-hold mask at end of frame
+        holdNew = 0;
 
         // *** Add score bonuses for note holds (with display score tracking)
         if (holdNotes)
@@ -787,10 +781,10 @@ void gameLoop()
             }
         }
 
-        // Draw hold bonus display (Project Diva style with border)
+        // *** Draw hold bonus display (Project Diva style - behind notes)
         if (holdNotes)
         {
-            int32_t baseY = 152;
+            int32_t baseY = 160;
 
             // Count held buttons
             int holdCount = 0;
@@ -803,55 +797,17 @@ void gameLoop()
                 scoreDigits++;
             if (scoreDigits == 0) scoreDigits = 1;
 
-            // Calculate content width and box dimensions
-            int countWidth = (holdCount > 1) ? 12 : 0;
-            int iconsWidth = holdCount * 18;
-            int scoreWidth = scoreDigits * 7;
-            int contentWidth = countWidth + iconsWidth + 6 + scoreWidth;
-            int boxWidth = contentWidth + 16;
-            int32_t boxX = 128 - boxWidth / 2;
-
-            // Draw top border line using 8x8 tiles
-            if (holdBoxBorderGfx)
-            {
-                for (int32_t bx = boxX; bx < boxX + boxWidth; bx += 8)
-                {
-                    oamSet(&oamMain, sprite++, bx, baseY - 4, 0, 2, SpriteSize_8x8,
-                        SpriteColorFormat_Bmp, holdBoxBorderGfx, -1, false, false, false, false, false);
-                }
-
-                // Draw bottom border line
-                for (int32_t bx = boxX; bx < boxX + boxWidth; bx += 8)
-                {
-                    oamSet(&oamMain, sprite++, bx, baseY + 28, 0, 2, SpriteSize_8x8,
-                        SpriteColorFormat_Bmp, holdBoxBorderGfx, -1, false, false, false, false, false);
-                }
-
-                // Draw left edge (3 tiles stacked vertically)
-                for (int32_t by = baseY; by < baseY + 28; by += 8)
-                {
-                    oamSet(&oamMain, sprite++, boxX - 4, by, 0, 2, SpriteSize_8x8,
-                        SpriteColorFormat_Bmp, holdBoxBorderGfx, -1, false, false, false, false, false);
-                }
-
-                // Draw right edge
-                for (int32_t by = baseY; by < baseY + 28; by += 8)
-                {
-                    oamSet(&oamMain, sprite++, boxX + boxWidth - 4, by, 0, 2, SpriteSize_8x8,
-                        SpriteColorFormat_Bmp, holdBoxBorderGfx, -1, false, false, false, false, false);
-                }
-            }
-
-            // Position content inside the box
-            int32_t curX = boxX + 8;
+            // Calculate total width to center everything
+            int totalWidth = 8 + 4 + holdCount * 18 + 6 + scoreDigits * 7;
+            int32_t curX = 128 - totalWidth / 2;
 
             // Draw hold count number on the left
             if (holdCount > 1)
             {
-                oamSet(&oamMain, sprite++, curX, baseY + 10, 0, 1, SpriteSize_8x8,
+                oamSet(&oamMain, sprite++, curX, baseY + 4, 0, 2, SpriteSize_8x8,
                     SpriteColorFormat_Bmp, numGfx[holdCount], -1, false, false, false, false, false);
-                curX += 12;
             }
+            curX += 12;
 
             // Draw held button icons (scaled to half size)
             for (int i = 0; i < 4; i++)
@@ -862,32 +818,31 @@ void gameLoop()
                     {
                         int32_t scale = (holdTime % 40 < 20) ? (1 << 9) : ((1 << 9) + 16);
                         oamRotateScale(&oamMain, rotscale, 0, scale, scale);
-                        oamSet(&oamMain, sprite++, curX - 8, baseY - 2, 0, 1, SpriteSize_32x32,
+                        oamSet(&oamMain, sprite++, curX - 8, baseY - 8, 0, 2, SpriteSize_32x32,
                             SpriteColorFormat_Bmp, mainGfx[8 + i], rotscale++, false, false, false, false, false);
                     }
                     curX += 18;
                 }
             }
 
-            curX += 6;
+            curX += 2;
 
             // Draw hold score on the right
             int32_t numX = curX + scoreDigits * 7;
             if (holdDisplayScore == 0)
             {
-                oamSet(&oamMain, sprite++, curX, baseY + 10, 0, 1, SpriteSize_8x8,
+                oamSet(&oamMain, sprite++, curX, baseY + 4, 0, 2, SpriteSize_8x8,
                     SpriteColorFormat_Bmp, numGfx[0], -1, false, false, false, false, false);
             }
             else
             {
                 for (uint32_t s = holdDisplayScore; s > 0; s /= 10)
                 {
-                    oamSet(&oamMain, sprite++, numX -= 7, baseY + 10, 0, 1, SpriteSize_8x8,
+                    oamSet(&oamMain, sprite++, numX -= 7, baseY + 4, 0, 2, SpriteSize_8x8,
                         SpriteColorFormat_Bmp, numGfx[s % 10], -1, false, false, false, false, false);
                 }
             }
         }
-
 
         // Draw the hit status while its timer is active
         if (statTimer > 0)
@@ -1105,6 +1060,7 @@ void gameReset()
     holdStart = 0;
     holdTime = 0;
     holdScore = 0;
+    holdNew = 0;
     holdDisplayScore = 0;
     slideCount = 0;
     slideBroken = false;
