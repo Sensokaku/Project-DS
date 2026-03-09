@@ -676,7 +676,7 @@ void gameLoop()
                                 // Add this button to active holds
                                 holdNotes |= BIT(notes[i].type & 0xF);
                             }
-                        }
+                        }           
 
                         // *** LOCATION 1: START HOLD SOUND ***
                         // Start hold sound if we hit an initial held slide
