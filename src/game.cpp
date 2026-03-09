@@ -480,7 +480,7 @@ void gameLoop()
         scanKeys();
         uint16_t held = keysHeld();
         uint16_t down = keysDown();
-        uint16_t up   = keysUp();
+        uint16_t up = keysUp();
 
         // Play hitsounds on button press
         if (down & (KEY_X | KEY_UP | KEY_A | KEY_RIGHT | KEY_B | KEY_DOWN | KEY_Y | KEY_LEFT))
@@ -676,7 +676,7 @@ void gameLoop()
                                 // Add this button to active holds
                                 holdNotes |= BIT(notes[i].type & 0xF);
                             }
-                        }           
+                        }
 
                         // *** LOCATION 1: START HOLD SOUND ***
                         // Start hold sound if we hit an initial held slide
@@ -737,7 +737,6 @@ void gameLoop()
                 break;
             }
         }
-    }
 
         // Add score bonuses for note holds
         if (holdNotes)
@@ -780,306 +779,308 @@ void gameLoop()
                 holdTime = 0;
                 holdScore = 0;
             }
-        }
 
-        // Draw hold bonus display (Project Diva style - horizontal bar at bottom, behind notes)
-        if (holdNotes)
-        {
-            int32_t baseY = 160;
-
-            // Count held buttons
-            int holdCount = 0;
-            for (int i = 0; i < 4; i++)
-                if (holdNotes & BIT(i)) holdCount++;
-
-            // Count score digits
-            int scoreDigits = 0;
-            for (uint32_t s = holdDisplayScore; s > 0; s /= 10)
-                scoreDigits++;
-            if (scoreDigits == 0) scoreDigits = 1;
-
-            // Calculate total width to center everything horizontally
-            // count(8) + gap(4) + icons(holdCount*18) + gap(6) + score(scoreDigits*7)
-            int totalWidth = 8 + 4 + holdCount * 18 + 6 + scoreDigits * 7;
-            int32_t curX = 128 - totalWidth / 2;
-
-            // Draw hold count number on the left
-            if (holdCount > 1)
+            // Draw hold bonus display (Project Diva style - horizontal bar at bottom, behind notes)
+            if (holdNotes)
             {
-                oamSet(&oamMain, sprite++, curX, baseY + 4, 0, 2, SpriteSize_8x8,
-                    SpriteColorFormat_Bmp, numGfx[holdCount], -1, false, false, false, false, false);
-            }
-            curX += 12;
+                int32_t baseY = 160;
 
-            // Draw held button icons (scaled to half size)
-            for (int i = 0; i < 4; i++)
-            {
-                if (holdNotes & BIT(i))
+                // Count held buttons
+                int holdCount = 0;
+                for (int i = 0; i < 4; i++)
+                    if (holdNotes & BIT(i))
+                        holdCount++;
+
+                // Count score digits
+                int scoreDigits = 0;
+                for (uint32_t s = holdDisplayScore; s > 0; s /= 10)
+                    scoreDigits++;
+                if (scoreDigits == 0)
+                    scoreDigits = 1;
+
+                // Calculate total width to center everything horizontally
+                // count(8) + gap(4) + icons(holdCount*18) + gap(6) + score(scoreDigits*7)
+                int totalWidth = 8 + 4 + holdCount * 18 + 6 + scoreDigits * 7;
+                int32_t curX = 128 - totalWidth / 2;
+
+                // Draw hold count number on the left
+                if (holdCount > 1)
                 {
+                    oamSet(&oamMain, sprite++, curX, baseY + 4, 0, 2, SpriteSize_8x8,
+                           SpriteColorFormat_Bmp, numGfx[holdCount], -1, false, false, false, false, false);
+                }
+                curX += 12;
+
+                // Draw held button icons (scaled to half size)
+                for (int i = 0; i < 4; i++)
+                {
+                    if (holdNotes & BIT(i))
+                    {
+                        if (rotscale < 32)
+                        {
+                            // 1 << 9 = 2.0x inverse scale = 0.5x display size
+                            // Pulse slightly every 20 frames
+                            int32_t scale = (holdTime % 40 < 20) ? (1 << 9) : ((1 << 9) + 16);
+                            oamRotateScale(&oamMain, rotscale, 0, scale, scale);
+                            oamSet(&oamMain, sprite++, curX - 8, baseY - 8, 0, 2, SpriteSize_32x32,
+                                   SpriteColorFormat_Bmp, mainGfx[8 + i], rotscale++, false, false, false, false, false);
+                        }
+                        curX += 18;
+                    }
+                }
+
+                curX += 2;
+
+                // Draw hold score on the right
+                int32_t numX = curX + scoreDigits * 7;
+                if (holdDisplayScore == 0)
+                {
+                    oamSet(&oamMain, sprite++, curX, baseY + 4, 0, 2, SpriteSize_8x8,
+                           SpriteColorFormat_Bmp, numGfx[0], -1, false, false, false, false, false);
+                }
+                else
+                {
+                    for (uint32_t s = holdDisplayScore; s > 0; s /= 10)
+                    {
+                        oamSet(&oamMain, sprite++, numX -= 7, baseY + 4, 0, 2, SpriteSize_8x8,
+                               SpriteColorFormat_Bmp, numGfx[s % 10], -1, false, false, false, false, false);
+                    }
+                }
+            }
+
+            // Draw the hit status while its timer is active
+            if (statTimer > 0)
+            {
+                int32_t x = 32;
+
+                // Draw the combo counter if a combo is ongoing
+                if (combo > 1)
+                {
+                    // Adjust status offset to keep centered with combo numbers
+                    x <<= 1;
+                    for (uint32_t c = combo; c > 0; c /= 10)
+                        x += 7; // 3.5 (half of number width)
+                    x >>= 1;
+
+                    // Draw a number for each decimal place in the combo counter
+                    for (uint32_t c = combo; c > 0; c /= 10)
+                    {
+                        oamSet(&oamMain, sprite++, statCurX + (x -= 7), statCurY, 0, 1, SpriteSize_8x8,
+                               SpriteColorFormat_Bmp, numGfx[c % 10], -1, false, false, false, false, false);
+                    }
+                }
+
+                // Draw the accuracy indicator to the left of the combo counter
+                oamSet(&oamMain, sprite++, statCurX + x - 32, statCurY, 0, 1, SpriteSize_32x8,
+                       SpriteColorFormat_Bmp, mainGfx[18 + statType], -1, false, false, false, false, false);
+
+                statTimer--;
+            }
+
+            // Update all queued notes
+            for (size_t i = 0; i < notes.size(); i++)
+            {
+                // Move the note closer to its hole
+                int x = notes[i].x + ((notes[i].ofsX -= notes[i].incX) >> 8);
+                int y = notes[i].y + ((notes[i].ofsY -= notes[i].incY) >> 8);
+
+                // Draw the note if it's within screen bounds
+                if (x > -32 && x < 256 && y > -32 && y < 192)
+                {
+                    uint8_t type = (notes[i].type & 0xF) + ((notes[i].type & BIT(7)) ? 10 : 8);
+                    oamSet(&oamMain, sprite++, x, y, 0, 1, SpriteSize_32x32,
+                           SpriteColorFormat_Bmp, mainGfx[type], -1, false, false, false, false, false);
+                }
+            }
+
+            // Draw holes for all queued notes
+            for (size_t i = 0; i < notes.size(); i++)
+            {
+                // Check if this is a multi-note so variant graphics can be used
+                bool multi = ((i > 0 && notes[i - 1].time == notes[i].time) ||
+                              (i < notes.size() - 1 && notes[i + 1].time == notes[i].time));
+
+                if (notes[i].type & BIT(7)) // Held slides
+                {
+                    // Draw a held slide note hole with no timing arrow
+                    uint8_t type = (notes[i].type & 0xF) + 2;
+                    oamSet(&oamMain, sprite++, notes[i].x, notes[i].y, 0, 1, SpriteSize_32x32,
+                           SpriteColorFormat_Bmp, (multi ? multiGfx : mainGfx)[type], -1, false, false, false, false, false);
+                }
+                else
+                {
+                    // Move the timing arrow further along its rotation
+                    uint16_t angle = (notes[i].ofsArrow -= notes[i].incArrow);
+
+                    // Draw the timing arrow if rotscale objects are still available
                     if (rotscale < 32)
                     {
-                        // 1 << 9 = 2.0x inverse scale = 0.5x display size
-                        // Pulse slightly every 20 frames
-                        int32_t scale = (holdTime % 40 < 20) ? (1 << 9) : ((1 << 9) + 16);
-                        oamRotateScale(&oamMain, rotscale, 0, scale, scale);
-                        oamSet(&oamMain, sprite++, curX - 8, baseY - 8, 0, 2, SpriteSize_32x32,
-                            SpriteColorFormat_Bmp, mainGfx[8 + i], rotscale++, false, false, false, false, false);
+                        oamRotateScale(&oamMain, rotscale, angle, intToFixed(1, 8), intToFixed(1, 8));
+                        oamSet(&oamMain, sprite++, notes[i].x, notes[i].y, 0, 1, SpriteSize_32x32,
+                               SpriteColorFormat_Bmp, mainGfx[16], rotscale++, false, false, false, false, false);
                     }
-                    curX += 18;
-                }
-            }
 
-            curX += 2;
+                    // Draw the hold indicator if the note is held
+                    if (notes[i].type & BIT(4))
+                    {
+                        oamSet(&oamMain, sprite++, notes[i].x, notes[i].y + 20, 0, 1, SpriteSize_32x16,
+                               SpriteColorFormat_Bmp, multi ? multiGfx[8] : mainGfx[17], -1, false, false, false, false, false);
+                    }
 
-            // Draw hold score on the right
-            int32_t numX = curX + scoreDigits * 7;
-            if (holdDisplayScore == 0)
-            {
-                oamSet(&oamMain, sprite++, curX, baseY + 4, 0, 2, SpriteSize_8x8,
-                    SpriteColorFormat_Bmp, numGfx[0], -1, false, false, false, false, false);
-            }
-            else
-            {
-                for (uint32_t s = holdDisplayScore; s > 0; s /= 10)
-                {
-                    oamSet(&oamMain, sprite++, numX -= 7, baseY + 4, 0, 2, SpriteSize_8x8,
-                        SpriteColorFormat_Bmp, numGfx[s % 10], -1, false, false, false, false, false);
-                }
-            }
-        }
-
-        // Draw the hit status while its timer is active
-        if (statTimer > 0)
-        {
-            int32_t x = 32;
-
-            // Draw the combo counter if a combo is ongoing
-            if (combo > 1)
-            {
-                // Adjust status offset to keep centered with combo numbers
-                x <<= 1;
-                for (uint32_t c = combo; c > 0; c /= 10)
-                    x += 7; // 3.5 (half of number width)
-                x >>= 1;
-
-                // Draw a number for each decimal place in the combo counter
-                for (uint32_t c = combo; c > 0; c /= 10)
-                {
-                    oamSet(&oamMain, sprite++, statCurX + (x -= 7), statCurY, 0, 1, SpriteSize_8x8,
-                        SpriteColorFormat_Bmp, numGfx[c % 10], -1, false, false, false, false, false);
-                }
-            }
-
-            // Draw the accuracy indicator to the left of the combo counter
-            oamSet(&oamMain, sprite++, statCurX + x - 32, statCurY, 0, 1, SpriteSize_32x8,
-                SpriteColorFormat_Bmp, mainGfx[18 + statType], -1, false, false, false, false, false);
-
-            statTimer--;
-        }
-
-        // Update all queued notes
-        for (size_t i = 0; i < notes.size(); i++)
-        {
-            // Move the note closer to its hole
-            int x = notes[i].x + ((notes[i].ofsX -= notes[i].incX) >> 8);
-            int y = notes[i].y + ((notes[i].ofsY -= notes[i].incY) >> 8);
-
-            // Draw the note if it's within screen bounds
-            if (x > -32 && x < 256 && y > -32 && y < 192)
-            {
-                uint8_t type = (notes[i].type & 0xF) + ((notes[i].type & BIT(7)) ? 10 : 8);
-                oamSet(&oamMain, sprite++, x, y, 0, 1, SpriteSize_32x32,
-                    SpriteColorFormat_Bmp, mainGfx[type], -1, false, false, false, false, false);
-            }
-        }
-
-        // Draw holes for all queued notes
-        for (size_t i = 0; i < notes.size(); i++)
-        {
-            // Check if this is a multi-note so variant graphics can be used
-            bool multi = ((i > 0 && notes[i - 1].time == notes[i].time) ||
-                (i < notes.size() - 1 && notes[i + 1].time == notes[i].time));
-
-            if (notes[i].type & BIT(7)) // Held slides
-            {
-                // Draw a held slide note hole with no timing arrow
-                uint8_t type = (notes[i].type & 0xF) + 2;
-                oamSet(&oamMain, sprite++, notes[i].x, notes[i].y, 0, 1, SpriteSize_32x32,
-                    SpriteColorFormat_Bmp, (multi ? multiGfx : mainGfx)[type], -1, false, false, false, false, false);
-            }
-            else
-            {
-                // Move the timing arrow further along its rotation
-                uint16_t angle = (notes[i].ofsArrow -= notes[i].incArrow);
-
-                // Draw the timing arrow if rotscale objects are still available
-                if (rotscale < 32)
-                {
-                    oamRotateScale(&oamMain, rotscale, angle, intToFixed(1, 8), intToFixed(1, 8));
+                    // Draw a regular note hole
+                    uint8_t type = (notes[i].type & 0xF);
                     oamSet(&oamMain, sprite++, notes[i].x, notes[i].y, 0, 1, SpriteSize_32x32,
-                        SpriteColorFormat_Bmp, mainGfx[16], rotscale++, false, false, false, false, false);
+                           SpriteColorFormat_Bmp, (multi ? multiGfx : mainGfx)[type], -1, false, false, false, false, false);
                 }
-
-                // Draw the hold indicator if the note is held
-                if (notes[i].type & BIT(4))
-                {
-                    oamSet(&oamMain, sprite++, notes[i].x, notes[i].y + 20, 0, 1, SpriteSize_32x16,
-                        SpriteColorFormat_Bmp, multi ? multiGfx[8] : mainGfx[17], -1, false, false, false, false, false);
-                }
-
-                // Draw a regular note hole
-                uint8_t type = (notes[i].type & 0xF);
-                oamSet(&oamMain, sprite++, notes[i].x, notes[i].y, 0, 1, SpriteSize_32x32,
-                    SpriteColorFormat_Bmp, (multi ? multiGfx : mainGfx)[type], -1, false, false, false, false, false);
             }
-        }
 
-        // Draw the empty life gauge, split into 2 rotscaled sprites
-        oamRotateScale(&oamSub, 0, 0, 1 << 7, 1 << 8);
-        oamSet(&oamSub, 0, 4 * 8, -4, 1, 1, SpriteSize_32x8,
-            SpriteColorFormat_Bmp, subGfx[0], 0, true, false, false, false, false);
-        oamSet(&oamSub, 1, 4 * 8 + 64, -4, 1, 1, SpriteSize_32x8,
-            SpriteColorFormat_Bmp, subGfx[0], 0, true, false, false, false, false);
+            // Draw the empty life gauge, split into 2 rotscaled sprites
+            oamRotateScale(&oamSub, 0, 0, 1 << 7, 1 << 8);
+            oamSet(&oamSub, 0, 4 * 8, -4, 1, 1, SpriteSize_32x8,
+                   SpriteColorFormat_Bmp, subGfx[0], 0, true, false, false, false, false);
+            oamSet(&oamSub, 1, 4 * 8 + 64, -4, 1, 1, SpriteSize_32x8,
+                   SpriteColorFormat_Bmp, subGfx[0], 0, true, false, false, false, false);
 
-        if (life > 127)
-        {
-            // Draw one full life gauge sprite, and scale a second one based on upper life
-            oamRotateScale(&oamSub, 1, 0, (1 << 14) / (life - 127), 1 << 8);
-            oamSet(&oamSub, 2, 4 * 8, -4, 0, 1, SpriteSize_32x8,
-                SpriteColorFormat_Bmp, subGfx[1], 0, true, false, false, false, false);
-            oamSet(&oamSub, 3, 4 * 8 + 32 + (life - 127) / 4, -4, 0, 1, SpriteSize_32x8,
-                SpriteColorFormat_Bmp, subGfx[1], 1, true, false, false, false, false);
-        }
-        else if (life > 0)
-        {
-            // Draw one life gauge sprite, scaled based on lower life
-            oamRotateScale(&oamSub, 1, 0, (1 << 14) / (life + 1), 1 << 8);
-            oamSet(&oamSub, 2, 4 * 8 - 32 + (life + 1) / 4, -4, 0, 1, SpriteSize_32x8,
-                SpriteColorFormat_Bmp, subGfx[1], 1, true, false, false, false, false);
-        }
-
-        // Update the maximum combo result
-        if (combo > results.comboMax)
-            results.comboMax = combo;
-
-        // Calculate the current clear percentage, with up to 5% bonus from holds
-        uint32_t holdBonus = std::min(scoreRef / 20, (results.scoreHold * 4) / holdDivide);
-        results.clear = (100.0f * (results.scoreBase + holdBonus)) / scoreRef;
-
-        // Draw the sub screen text-based UI elements
-        printf("\x1b[0;0HLIFE");
-        printf("\x1b[0;25H%07lu", results.scoreBase + results.scoreHold + results.scoreSlide);
-        printf("\x1b[23;0H%.02f%%", results.clear);
-
-        // Move to the next frame
-        oamUpdate(&oamMain);
-        oamUpdate(&oamSub);
-        swiWaitForVBlank();
-        timer += FRAME_TIME;
-
-        // Check the stop conditions
-        if (down & KEY_START)
-        {
-            clearLyrics();
-            retryMenu(true);
-        }
-       else if (life == 0 || (finished && notes.empty()))
-        {
-            clearLyrics();
-
-            PlayerData &pd = getPlayerData();
-            pd.songsPlayed++;
-
-            if (life > 0)
+            if (life > 127)
             {
-                pd.songsClear++;
-
-                // --- Difficulty multiplier ---
-                static const uint32_t diffMultiplier[] = { 50, 75, 100, 150, 175 };
-                uint32_t diffMult = diffMultiplier[std::min((size_t)4, (size_t)currentDifficulty)];
-
-                // --- Base XP from clear percentage ---
-                uint32_t xpEarned = 20 + (uint32_t)(results.clear * 0.8f);
-
-                // --- Accuracy bonus ---
-                if (results.total > 0)
-                {
-                    uint32_t goodHits = results.cools + results.fines;
-                    uint32_t accuracyPercent = (goodHits * 100) / results.total;
-                    xpEarned += accuracyPercent / 4;
-                }
-
-                // --- Cool ratio bonus ---
-                if (results.total > 0)
-                {
-                    uint32_t coolPercent = (results.cools * 100) / results.total;
-                    xpEarned += coolPercent / 5;
-                }
-
-                // --- Combo bonus ---
-                if (results.comboMax >= results.total && results.total > 0)
-                {
-                    xpEarned += 30;
-                }
-                else if (results.comboMax >= results.total / 2)
-                {
-                    xpEarned += 10;
-                }
-
-                // --- Perfect bonus (all cools, no misses) ---
-                if (results.misses == 0 && results.sads == 0 &&
-                    results.safes == 0 && results.fines == 0)
-                {
-                    xpEarned += 50;
-                    pd.perfectCount++;
-                }
-
-                // --- Track rank totals ---
-                // Uses same rank logic as resultsScreen
-                static uint8_t percents[5][3] =
-                {
-                    { 30, 65, 80 },
-                    { 50, 75, 85 },
-                    { 60, 80, 90 },
-                    { 70, 85, 95 },
-                    { 70, 85, 95 }
-                };
-
-                if (results.comboMax == results.total)
-                    ; // perfectCount already incremented above
-                else if (results.clear >= percents[currentDifficulty][2])
-                    pd.excellentCount++;
-                else if (results.clear >= percents[currentDifficulty][1])
-                    pd.greatCount++;
-                else if (results.clear >= percents[currentDifficulty][0])
-                    pd.standardCount++;
-
-                // --- Apply difficulty multiplier ---
-                xpEarned = (xpEarned * diffMult) / 100;
-
-                uint32_t levelsGained = addXp(xpEarned);
-                results.xpEarned = xpEarned;
-                results.levelsGained = levelsGained;
+                // Draw one full life gauge sprite, and scale a second one based on upper life
+                oamRotateScale(&oamSub, 1, 0, (1 << 14) / (life - 127), 1 << 8);
+                oamSet(&oamSub, 2, 4 * 8, -4, 0, 1, SpriteSize_32x8,
+                       SpriteColorFormat_Bmp, subGfx[1], 0, true, false, false, false, false);
+                oamSet(&oamSub, 3, 4 * 8 + 32 + (life - 127) / 4, -4, 0, 1, SpriteSize_32x8,
+                       SpriteColorFormat_Bmp, subGfx[1], 1, true, false, false, false, false);
             }
-            else
+            else if (life > 0)
             {
-                // Failed
+                // Draw one life gauge sprite, scaled based on lower life
+                oamRotateScale(&oamSub, 1, 0, (1 << 14) / (life + 1), 1 << 8);
+                oamSet(&oamSub, 2, 4 * 8 - 32 + (life + 1) / 4, -4, 0, 1, SpriteSize_32x8,
+                       SpriteColorFormat_Bmp, subGfx[1], 1, true, false, false, false, false);
+            }
+
+            // Update the maximum combo result
+            if (combo > results.comboMax)
+                results.comboMax = combo;
+
+            // Calculate the current clear percentage, with up to 5% bonus from holds
+            uint32_t holdBonus = std::min(scoreRef / 20, (results.scoreHold * 4) / holdDivide);
+            results.clear = (100.0f * (results.scoreBase + holdBonus)) / scoreRef;
+
+            // Draw the sub screen text-based UI elements
+            printf("\x1b[0;0HLIFE");
+            printf("\x1b[0;25H%07lu", results.scoreBase + results.scoreHold + results.scoreSlide);
+            printf("\x1b[23;0H%.02f%%", results.clear);
+
+            // Move to the next frame
+            oamUpdate(&oamMain);
+            oamUpdate(&oamSub);
+            swiWaitForVBlank();
+            timer += FRAME_TIME;
+
+            // Check the stop conditions
+            if (down & KEY_START)
+            {
+                clearLyrics();
+                retryMenu(true);
+            }
+            else if (life == 0 || (finished && notes.empty()))
+            {
+                clearLyrics();
+
                 PlayerData &pd = getPlayerData();
                 pd.songsPlayed++;
-                pd.dropoutCount++;
 
-                static const uint32_t failXp[] = { 5, 8, 10, 15, 18 };
-                uint32_t xpEarned = failXp[std::min((size_t)4, (size_t)currentDifficulty)];
-                xpEarned += (uint32_t)(results.clear * 0.1f);
+                if (life > 0)
+                {
+                    pd.songsClear++;
 
-                uint32_t levelsGained = addXp(xpEarned);
-                results.xpEarned = xpEarned;
-                results.levelsGained = levelsGained;
+                    // --- Difficulty multiplier ---
+                    static const uint32_t diffMultiplier[] = {50, 75, 100, 150, 175};
+                    uint32_t diffMult = diffMultiplier[std::min((size_t)4, (size_t)currentDifficulty)];
+
+                    // --- Base XP from clear percentage ---
+                    uint32_t xpEarned = 20 + (uint32_t)(results.clear * 0.8f);
+
+                    // --- Accuracy bonus ---
+                    if (results.total > 0)
+                    {
+                        uint32_t goodHits = results.cools + results.fines;
+                        uint32_t accuracyPercent = (goodHits * 100) / results.total;
+                        xpEarned += accuracyPercent / 4;
+                    }
+
+                    // --- Cool ratio bonus ---
+                    if (results.total > 0)
+                    {
+                        uint32_t coolPercent = (results.cools * 100) / results.total;
+                        xpEarned += coolPercent / 5;
+                    }
+
+                    // --- Combo bonus ---
+                    if (results.comboMax >= results.total && results.total > 0)
+                    {
+                        xpEarned += 30;
+                    }
+                    else if (results.comboMax >= results.total / 2)
+                    {
+                        xpEarned += 10;
+                    }
+
+                    // --- Perfect bonus (all cools, no misses) ---
+                    if (results.misses == 0 && results.sads == 0 &&
+                        results.safes == 0 && results.fines == 0)
+                    {
+                        xpEarned += 50;
+                        pd.perfectCount++;
+                    }
+
+                    // --- Track rank totals ---
+                    // Uses same rank logic as resultsScreen
+                    static uint8_t percents[5][3] =
+                        {
+                            {30, 65, 80},
+                            {50, 75, 85},
+                            {60, 80, 90},
+                            {70, 85, 95},
+                            {70, 85, 95}};
+
+                    if (results.comboMax == results.total)
+                        ; // perfectCount already incremented above
+                    else if (results.clear >= percents[currentDifficulty][2])
+                        pd.excellentCount++;
+                    else if (results.clear >= percents[currentDifficulty][1])
+                        pd.greatCount++;
+                    else if (results.clear >= percents[currentDifficulty][0])
+                        pd.standardCount++;
+
+                    // --- Apply difficulty multiplier ---
+                    xpEarned = (xpEarned * diffMult) / 100;
+
+                    uint32_t levelsGained = addXp(xpEarned);
+                    results.xpEarned = xpEarned;
+                    results.levelsGained = levelsGained;
+                }
+                else
+                {
+                    // Failed
+                    PlayerData &pd = getPlayerData();
+                    pd.songsPlayed++;
+                    pd.dropoutCount++;
+
+                    static const uint32_t failXp[] = {5, 8, 10, 15, 18};
+                    uint32_t xpEarned = failXp[std::min((size_t)4, (size_t)currentDifficulty)];
+                    xpEarned += (uint32_t)(results.clear * 0.1f);
+
+                    uint32_t levelsGained = addXp(xpEarned);
+                    results.xpEarned = xpEarned;
+                    results.levelsGained = levelsGained;
+                }
+
+                resultsScreen(&results, life == 0);
             }
-
-            resultsScreen(&results, life == 0);
         }
     }
+}
 
 void gameReset()
 {
@@ -1098,6 +1099,7 @@ void gameReset()
     holdStart = 0;
     holdTime = 0;
     holdScore = 0;
+    holdDisplayScore = 0;
     slideCount = 0;
     slideBroken = false;
     combo = 0;
