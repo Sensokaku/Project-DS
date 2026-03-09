@@ -277,7 +277,7 @@ void songList()
 
         // Display player level
         PlayerData &pd = getPlayerData();
-        printf("\x1b[22;0HLv.%lu  XP:%lu/%lu", pd.level, pd.xp, getXpForLevel(pd.level));
+        printf("\x1b[22;0HLv.%lu  XP:%lu/%lu Playcount:%lu", pd.level, pd.xp, pd.songsPlayed, getXpForLevel(pd.level));
 
         // Wait for button input
         int pv_num = std::stoi(charts[difficulty][selection]);
@@ -378,7 +378,6 @@ void songList()
                 selection = 0;
         }
     }
-
 
     // Infer names for all the files that might need to be accessed
     std::string dscName = "/project-ds/dsc/pv_" + charts[difficulty][selection] + ends[difficulty];
@@ -573,10 +572,14 @@ void resultsScreen(Results *results, bool fail)
 
     // Show PlayerData
     PlayerData &pd = getPlayerData();
-    printf("\x1b[20;6HLv.%lu  XP:%lu/%lu", pd.level, pd.xp, getXpForLevel(pd.level));
-    printf("\x1b[21;6H+%lu XP", results->xpEarned);
+    printf("\x1b[20;2HLv.%lu  XP:%lu/%lu", pd.level, pd.xp, getXpForLevel(pd.level));
+    printf("\x1b[21;2H+%lu XP", results->xpEarned);
     if (results->levelsGained > 0)
         printf("  LEVEL UP!");
+    printf("\x1b[22;2HPlaycount:%lu Total XP:%lu",
+        pd.songsPlayed, pd.xpTotal);
+    printf("\x1b[23;2HP:%lu E:%lu G:%lu S:%lu D:%lu ",
+        pd.perfectCount, pd.excellentCount, pd.greatCount, pd.standardCount, pd.dropoutCount);
 
     // Update the saved scores if any records were broken
     bool update = false;

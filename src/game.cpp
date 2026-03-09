@@ -59,6 +59,10 @@
 #define PI 3.14159
 #define FRAME_TIME 1672
 
+static uint32_t holdDisplayScore = 0;
+static int32_t holdX = 0;
+static int32_t holdY = 0;
+
 struct Note
 {
     uint8_t type;
@@ -659,20 +663,20 @@ void gameLoop()
 
                         for (int i = 0; i < current; i++)
                         {
-                            // Cancel note holds if a held note is hit again
-                            if (holdNotes & BIT(notes[i].type & 0xF))
-                            {
-                                holdNotes = 0;
-                                holdStart = 0;
-                                holdTime = 0;
-                                holdScore = 0;
-                            }
-
-                            // Track note holds and reset the max hold time when a new one starts
+                            // Track note holds
                             if (notes[i].type & BIT(4))
                             {
+                                // If no holds active yet, reset the timer
+                                if (!holdNotes)
+                                {
+                                    holdStart = 0;
+                                    holdTime = 0;
+                                    holdScore = 0;
+                                    holdDisplayScore = 0;
+                                }
+
+                                // Add this button to active holds
                                 holdNotes |= BIT(notes[i].type & 0xF);
-                                holdTime = 0;
                             }
                         }
 
@@ -722,7 +726,7 @@ void gameLoop()
             }
         }
 
-        // Cancel note holds if one was released
+        // Cancel all note holds if any held button is released
         for (int i = 0; i < 4; i++)
         {
             if ((holdNotes & BIT(i)) && !(held & keys[i]))
@@ -731,11 +735,13 @@ void gameLoop()
                 holdStart = 0;
                 holdTime = 0;
                 holdScore = 0;
+                holdDisplayScore = 0;
+                break;
             }
         }
+    }
 
         // Add score bonuses for note holds
-        // TODO: draw the score bonus UI
         if (holdNotes)
         {
             if (holdStart == 12)
@@ -775,6 +781,72 @@ void gameLoop()
                 holdStart = 0;
                 holdTime = 0;
                 holdScore = 0;
+            }
+        }
+
+        // Draw hold bonus display (Project Diva style - horizontal bar at bottom, behind notes)
+        if (holdNotes)
+        {
+            int32_t baseY = 160;
+
+            // Count held buttons
+            int holdCount = 0;
+            for (int i = 0; i < 4; i++)
+                if (holdNotes & BIT(i)) holdCount++;
+
+            // Count score digits
+            int scoreDigits = 0;
+            for (uint32_t s = holdDisplayScore; s > 0; s /= 10)
+                scoreDigits++;
+            if (scoreDigits == 0) scoreDigits = 1;
+
+            // Calculate total width to center everything horizontally
+            // count(8) + gap(4) + icons(holdCount*18) + gap(6) + score(scoreDigits*7)
+            int totalWidth = 8 + 4 + holdCount * 18 + 6 + scoreDigits * 7;
+            int32_t curX = 128 - totalWidth / 2;
+
+            // Draw hold count number on the left
+            if (holdCount > 1)
+            {
+                oamSet(&oamMain, sprite++, curX, baseY + 4, 0, 2, SpriteSize_8x8,
+                    SpriteColorFormat_Bmp, numGfx[holdCount], -1, false, false, false, false, false);
+            }
+            curX += 12;
+
+            // Draw held button icons (scaled to half size)
+            for (int i = 0; i < 4; i++)
+            {
+                if (holdNotes & BIT(i))
+                {
+                    if (rotscale < 32)
+                    {
+                        // 1 << 9 = 2.0x inverse scale = 0.5x display size
+                        // Pulse slightly every 20 frames
+                        int32_t scale = (holdTime % 40 < 20) ? (1 << 9) : ((1 << 9) + 16);
+                        oamRotateScale(&oamMain, rotscale, 0, scale, scale);
+                        oamSet(&oamMain, sprite++, curX - 8, baseY - 8, 0, 2, SpriteSize_32x32,
+                            SpriteColorFormat_Bmp, mainGfx[8 + i], rotscale++, false, false, false, false, false);
+                    }
+                    curX += 18;
+                }
+            }
+
+            curX += 2;
+
+            // Draw hold score on the right
+            int32_t numX = curX + scoreDigits * 7;
+            if (holdDisplayScore == 0)
+            {
+                oamSet(&oamMain, sprite++, curX, baseY + 4, 0, 2, SpriteSize_8x8,
+                    SpriteColorFormat_Bmp, numGfx[0], -1, false, false, false, false, false);
+            }
+            else
+            {
+                for (uint32_t s = holdDisplayScore; s > 0; s /= 10)
+                {
+                    oamSet(&oamMain, sprite++, numX -= 7, baseY + 4, 0, 2, SpriteSize_8x8,
+                        SpriteColorFormat_Bmp, numGfx[s % 10], -1, false, false, false, false, false);
+                }
             }
         }
 
@@ -925,39 +997,35 @@ void gameLoop()
                 pd.songsClear++;
 
                 // --- Difficulty multiplier ---
-                // Matches the difficulty index from loadChart
                 static const uint32_t diffMultiplier[] = { 50, 75, 100, 150, 175 };
                 uint32_t diffMult = diffMultiplier[std::min((size_t)4, (size_t)currentDifficulty)];
 
                 // --- Base XP from clear percentage ---
-                // 0-100% maps to 20-100 base XP
                 uint32_t xpEarned = 20 + (uint32_t)(results.clear * 0.8f);
 
                 // --- Accuracy bonus ---
-                // Ratio of cools+fines vs total notes
                 if (results.total > 0)
                 {
                     uint32_t goodHits = results.cools + results.fines;
                     uint32_t accuracyPercent = (goodHits * 100) / results.total;
-                    xpEarned += accuracyPercent / 4; // Up to +25 XP
+                    xpEarned += accuracyPercent / 4;
                 }
 
                 // --- Cool ratio bonus ---
-                // Extra reward for precision (cools vs total)
                 if (results.total > 0)
                 {
                     uint32_t coolPercent = (results.cools * 100) / results.total;
-                    xpEarned += coolPercent / 5; // Up to +20 XP
+                    xpEarned += coolPercent / 5;
                 }
 
                 // --- Combo bonus ---
                 if (results.comboMax >= results.total && results.total > 0)
                 {
-                    xpEarned += 30; // Full combo bonus
+                    xpEarned += 30;
                 }
                 else if (results.comboMax >= results.total / 2)
                 {
-                    xpEarned += 10; // Half combo bonus
+                    xpEarned += 10;
                 }
 
                 // --- Perfect bonus (all cools, no misses) ---
@@ -968,8 +1036,27 @@ void gameLoop()
                     pd.perfectCount++;
                 }
 
+                // --- Track rank totals ---
+                // Uses same rank logic as resultsScreen
+                static uint8_t percents[5][3] =
+                {
+                    { 30, 65, 80 },
+                    { 50, 75, 85 },
+                    { 60, 80, 90 },
+                    { 70, 85, 95 },
+                    { 70, 85, 95 }
+                };
+
+                if (results.comboMax == results.total)
+                    ; // perfectCount already incremented above
+                else if (results.clear >= percents[currentDifficulty][2])
+                    pd.excellentCount++;
+                else if (results.clear >= percents[currentDifficulty][1])
+                    pd.greatCount++;
+                else if (results.clear >= percents[currentDifficulty][0])
+                    pd.standardCount++;
+
                 // --- Apply difficulty multiplier ---
-                // diffMult is a percentage (50-175%)
                 xpEarned = (xpEarned * diffMult) / 100;
 
                 uint32_t levelsGained = addXp(xpEarned);
@@ -978,11 +1065,13 @@ void gameLoop()
             }
             else
             {
-                // Failed: small consolation XP, still scales with difficulty
+                // Failed
+                PlayerData &pd = getPlayerData();
+                pd.songsPlayed++;
+                pd.dropoutCount++;
+
                 static const uint32_t failXp[] = { 5, 8, 10, 15, 18 };
                 uint32_t xpEarned = failXp[std::min((size_t)4, (size_t)currentDifficulty)];
-
-                // Bonus for getting far before failing
                 xpEarned += (uint32_t)(results.clear * 0.1f);
 
                 uint32_t levelsGained = addXp(xpEarned);

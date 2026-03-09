@@ -7,7 +7,7 @@
 
 static PlayerData player = {};
 static const char *savePath = "/project-ds/save.dat";
-static const uint32_t saveVersion = 1;
+static const uint32_t saveVersion = 2;
 
 void saveInit()
 {
