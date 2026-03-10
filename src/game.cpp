@@ -109,6 +109,8 @@ static uint8_t holdDivide = 1;
 
 static size_t currentDifficulty = 0;
 
+static uint8_t musicDelay = 0;
+
 static Results results;
 
 static const uint8_t paramCounts[0x100] =
@@ -435,9 +437,8 @@ static void updateChart()
                 // Start playing the song
                 playSong(songName);
 
-                // Pre-fill the stream buffers so audio starts immediately
-                for (int i = 0; i < 4; i++)
-                    updateSong();
+                // Pause chart timer to let audio buffers fill
+                musicDelay = 6;
                 break;
             }
 
@@ -957,7 +958,11 @@ void gameLoop()
         oamUpdate(&oamMain);
         oamUpdate(&oamSub);
         swiWaitForVBlank();
-        timer += FRAME_TIME;
+        // Pause timer while audio buffers are filling
+        if (musicDelay > 0)
+            musicDelay--;
+        else
+            timer += FRAME_TIME;
 
         if (down & KEY_START)
         {
@@ -1070,6 +1075,7 @@ void gameReset()
     slideBroken = false;
     combo = 0;
     life = 127;
+    musicDelay = 0;
     results = Results();
     processChart();
 }
