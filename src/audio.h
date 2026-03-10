@@ -22,6 +22,9 @@
 
 #include <string>
 
+void getAudioTimer();
+void resetAudioTimer();
+
 extern void audioInit();
 extern void setLagConfig(int ms);
 
