@@ -45,12 +45,20 @@ static volatile int32_t buttonSndPos = -1;
 static volatile int32_t slideSndPos = -1;
 static volatile int32_t holdSndPos = -1;
 static volatile int32_t holdEndSndPos = -1;
+static volatile uint32_t totalSamplesPlayed = 0;
 
 static inline int16_t clampSample(int32_t val)
 {
     if (val > 32767) return 32767;
     if (val < -32768) return -32768;
     return (int16_t)val;
+}
+
+uint32_t getAudioTimer()
+{
+    // Convert samples played to chart timer units
+    // 22050 samples/sec, 100000 timer units/sec
+    return (uint64_t)totalSamplesPlayed * 100000 / 22050;
 }
 
 static mm_word audioCallback(mm_word length, mm_addr dest, mm_stream_formats format)
@@ -136,7 +144,14 @@ mix_hitsounds:
             holdEndSndPos = -1;
     }
 
+    totalSamplesPlayed += length;
+
     return length;
+}
+
+void resetAudioTimer()
+{
+    totalSamplesPlayed = 0;
 }
 
 void audioInit()
@@ -265,6 +280,7 @@ void playSong(std::string &name)
     // Reset the PCM stream
     if (song) fclose(song);
     songOffset = 0;
+    totalSamplesPlayed = 0;
 
     // Open and play a PCM file if it exists, skipping ahead if early
     if ((song = fopen(name.c_str(), "rb")))

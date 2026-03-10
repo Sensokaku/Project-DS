@@ -109,7 +109,8 @@ static uint8_t holdDivide = 1;
 
 static size_t currentDifficulty = 0;
 
-static uint8_t musicDelay = 0;
+static uint32_t musicStartTime = 0;
+static bool musicPlaying = false;
 
 static Results results;
 
@@ -431,14 +432,14 @@ static void updateChart()
 
                 break;
             }
-
             case 0x19: // Music play
             {
                 // Start playing the song
                 playSong(songName);
 
-                // Pause chart timer to let audio buffers fill
-                musicDelay = 6;
+                // Lock chart timer to audio from this point
+                musicStartTime = timer;
+                musicPlaying = true;
                 break;
             }
 
@@ -958,9 +959,9 @@ void gameLoop()
         oamUpdate(&oamMain);
         oamUpdate(&oamSub);
         swiWaitForVBlank();
-        // Pause timer while audio buffers are filling
-        if (musicDelay > 0)
-            musicDelay--;
+        // Sync timer to audio once music is playing
+        if (musicPlaying)
+            timer = musicStartTime + getAudioTimer();
         else
             timer += FRAME_TIME;
 
@@ -1075,7 +1076,8 @@ void gameReset()
     slideBroken = false;
     combo = 0;
     life = 127;
-    musicDelay = 0;
+    musicStartTime = 0;
+    musicPlaying = false;
     results = Results();
     processChart();
 }
