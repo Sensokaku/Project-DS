@@ -434,6 +434,10 @@ static void updateChart()
             {
                 // Start playing the song
                 playSong(songName);
+
+                // Pre-fill the stream buffers so audio starts immediately
+                for (int i = 0; i < 4; i++)
+                    mmStreamUpdate();
                 break;
             }
 
