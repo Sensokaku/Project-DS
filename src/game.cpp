@@ -437,7 +437,7 @@ static void updateChart()
 
                 // Pre-fill the stream buffers so audio starts immediately
                 for (int i = 0; i < 4; i++)
-                    mmStreamUpdate();
+                    updateSong();
                 break;
             }
 
