@@ -952,7 +952,7 @@ void gameLoop()
         uint32_t holdBonus = std::min(scoreRef / 20, (results.scoreHold * 4) / holdDivide);
         results.clear = (100.0f * (results.scoreBase + holdBonus)) / scoreRef;
 
-        printf("\x1b[0;0HLIFE");
+        printf("\x1b[39m\x1b[0;0HLIFE");
         printf("\x1b[0;25H%07lu", results.scoreBase + results.scoreHold + results.scoreSlide);
         printf("\x1b[23;0H%.02f%%", results.clear);
 
