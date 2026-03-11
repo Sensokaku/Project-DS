@@ -22,8 +22,6 @@
 
 #include <string>
 
-void getAudioTimer();
-void resetAudioTimer();
 
 extern void audioInit();
 extern void setLagConfig(int ms);
@@ -40,6 +38,8 @@ void playSlideSound();
 void playHoldSound();
 void stopHoldSound();
 void playHoldEndSound();
+uint32_t getAudioTimer();
+void resetAudioTimer();
 
 extern bool convertSong(std::string &src, std::string &dst);
 

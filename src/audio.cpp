@@ -54,13 +54,6 @@ static inline int16_t clampSample(int32_t val)
     return (int16_t)val;
 }
 
-uint32_t getAudioTimer()
-{
-    // Convert samples played to chart timer units
-    // 22050 samples/sec, 100000 timer units/sec
-    return (uint64_t)totalSamplesPlayed * 100000 / 22050;
-}
-
 static mm_word audioCallback(mm_word length, mm_addr dest, mm_stream_formats format)
 {
     int16_t *buf = (int16_t *)dest;
@@ -149,10 +142,6 @@ mix_hitsounds:
     return length;
 }
 
-void resetAudioTimer()
-{
-    totalSamplesPlayed = 0;
-}
 
 void audioInit()
 {
@@ -273,6 +262,18 @@ void setLagConfig(int ms)
 {
     // Calculate a byte offset from a lag config in milliseconds
     lagConfig = (44100 * 2 * ms / 1000) & ~0x3;
+}
+
+uint32_t getAudioTimer()
+{
+    // Convert samples played to chart timer units
+    // 22050 samples/sec, 100000 timer units/sec
+    return (uint64_t)totalSamplesPlayed * 100000 / 22050;
+}
+
+void resetAudioTimer()
+{
+    totalSamplesPlayed = 0;
 }
 
 void playSong(std::string &name)
