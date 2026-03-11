@@ -272,7 +272,7 @@ void songList()
         printf("\x1b[22;0H\x1b[36mLv.\x1b[37m%lu  \x1b[36mXP:\x1b[37m%lu/%lu \x1b[36mPlays:\x1b[37m%lu", pd.level, pd.xp, getXpForLevel(pd.level), pd.songsPlayed);
 
         // Display the difficulty tabs
-        printf("\x1b[39m\x1b[23;0H%c\x1b[34mEasy %c\x1b[32mNormal %c\x1b[33mHard %c\x1b[31mExtrm %c\x1b[35mExEx", a[difficulty == 0],
+        printf("\x1b[39m\x1b[23;0H%c\x1b[34mEasy \x1b[39m%c\x1b[32mNormal \x1b[39m%c\x1b[33mHard \x1b[39m%c\x1b[31mExtrm \x1b[39m%c\x1b[35mExEx", a[difficulty == 0],
             a[difficulty == 1], a[difficulty == 2], a[difficulty == 3], a[difficulty == 4]);
 
         uint16_t down = 0;
