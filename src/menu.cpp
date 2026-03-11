@@ -267,17 +267,17 @@ void songList()
             printf("\x1b[%d;%dH%s", (i - offset) * 3 + 2, 28 + (i == selection), ranks[data.ranks[difficulty]]);
         }
 
+        // Display player level
+        PlayerData &pd = getPlayerData();
+        printf("\x1b[36m[22;0HLv.\x1b[37m%lu  \x1b[36mXP:\x1b[37m%lu/%lu \x1b[36mPlays:\x1b[37m%lu", pd.level, pd.xp, getXpForLevel(pd.level), pd.songsPlayed);
+
         // Display the difficulty tabs
-        printf("\x1b[39m\x1b[23;0H%cEasy %cNormal %cHard %cExtrm %cExEx", a[difficulty == 0],
+        printf("\x1b[39m\x1b[23;0H%c\x1b[34mEasy %c\x1b[32mNormal %c\x1b[33mHard %c\x1b[31mExtrm %c\x1b[35mExEx", a[difficulty == 0],
             a[difficulty == 1], a[difficulty == 2], a[difficulty == 3], a[difficulty == 4]);
 
         uint16_t down = 0;
         uint16_t held = 0;
         keysDown();
-
-        // Display player level
-        PlayerData &pd = getPlayerData();
-        printf("\x1b[22;0HLv.%lu  XP:%lu/%lu Plays:%lu", pd.level, pd.xp, getXpForLevel(pd.level), pd.songsPlayed);
 
         // Wait for button input
         int pv_num = std::stoi(charts[difficulty][selection]);
