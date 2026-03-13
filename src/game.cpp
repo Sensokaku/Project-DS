@@ -494,7 +494,7 @@ void gameLoop()
         if (down & (KEY_L | KEY_R))
             playSlideSound();
 
-        if (!notes.empty() && notes[0].time - FRAME_TIME * 12 < timer)
+        if (!notes.empty() && notes[0].time - FRAME_TIME * ((notes[0].type & BIT(7)) ? 2 : 12) < timer)
         {
             // Get the keys that need to be pressed for the current notes
             if (!mask)
