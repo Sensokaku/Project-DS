@@ -46,8 +46,6 @@ static volatile int32_t holdSndFade = 0;
 static const int32_t HOLD_FADE_LEN = 2000; // ~90ms fade at 22050Hz
 static volatile int32_t buttonSndPos = -1;
 static volatile int32_t slideSndPos = -1;
-static volatile int32_t holdSndPos = -1;
-static volatile int32_t holdEndSndPos = -1;
 static volatile uint32_t totalSamplesPlayed = 0;
 
 static inline int16_t clampSample(int32_t val)
