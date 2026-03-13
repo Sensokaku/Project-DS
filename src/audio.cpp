@@ -41,6 +41,9 @@ static int32_t slideSndSamples = 0;
 static int32_t holdSndSamples = 0;
 static int16_t *holdEndSndData = nullptr;
 static int32_t holdEndSndSamples = 0;
+static volatile int32_t holdSndPos = -1;
+static volatile int32_t holdSndFade = 0;
+static const int32_t HOLD_FADE_LEN = 2000; // ~90ms fade at 22050Hz
 static volatile int32_t buttonSndPos = -1;
 static volatile int32_t slideSndPos = -1;
 static volatile int32_t holdSndPos = -1;
@@ -104,19 +107,33 @@ mix_hitsounds:
             slideSndPos = -1;
     }
 
-    // Mix hold hitsound into the stream buffer (normal speed, stops externally)
+    // Mix hold hitsound into the stream buffer (looping with fade out)
     if (holdSndPos >= 0 && holdSndData)
     {
         for (uint32_t i = 0; i < length; i++)
         {
             if (holdSndPos >= holdSndSamples)
-            {
-                // Loop back to start if hold is still active
                 holdSndPos = 0;
+
+            int32_t vol;
+            if (holdSndFade > 0)
+            {
+                // Fading out
+                vol = (holdSndFade * 256) / HOLD_FADE_LEN;
+                holdSndFade--;
+                if (holdSndFade == 0)
+                {
+                    holdSndPos = -1;
+                    break;
+                }
+            }
+            else
+            {
+                vol = 256;
             }
 
-            int32_t l = buf[i * 2 + 0] + holdSndData[holdSndPos * 2 + 0];
-            int32_t r = buf[i * 2 + 1] + holdSndData[holdSndPos * 2 + 1];
+            int32_t l = buf[i * 2 + 0] + (holdSndData[holdSndPos * 2 + 0] * vol / 256);
+            int32_t r = buf[i * 2 + 1] + (holdSndData[holdSndPos * 2 + 1] * vol / 256);
             buf[i * 2 + 0] = clampSample(l);
             buf[i * 2 + 1] = clampSample(r);
             holdSndPos++;
@@ -245,12 +262,15 @@ void playSlideSound()
 
 void playHoldSound()
 {
+    holdSndFade = 0;
     holdSndPos = 0;
 }
 
 void stopHoldSound()
 {
-    holdSndPos = -1;
+    // Start fade out instead of instant cut
+    if (holdSndPos >= 0)
+        holdSndFade = HOLD_FADE_LEN;
 }
 
 void playHoldEndSound()

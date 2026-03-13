@@ -956,12 +956,6 @@ void gameLoop()
         printf("\x1b[0;25H%07lu", results.scoreBase + results.scoreHold + results.scoreSlide);
         printf("\x1b[23;0H%.02f%%", results.clear);
 
-        printf("\x1b[1;0H                                ");
-        printf("\x1b[1;0HT:%lu A:%lu D:%ld", timer,
-            musicPlaying ? musicStartTime + getAudioTimer() : 0,
-            musicPlaying ? (int32_t)(timer - (musicStartTime + getAudioTimer())) : 0);
-
-
         oamUpdate(&oamMain);
         oamUpdate(&oamSub);
         swiWaitForVBlank();
